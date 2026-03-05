@@ -1,0 +1,1095 @@
+'use client'
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+
+type Point3D = {
+  x: number;
+  y: number;
+  z: number;
+};
+
+type Point2D = {
+  x: number;
+  y: number;
+};
+
+type Cube = {
+  row: number;
+  col: number;
+  rowSpan: number;
+  colSpan: number;
+  cx: number;
+  cy: number;
+  width: number;
+  height: number;
+  angle: number;
+  startAngle: number;
+  targetAngle: number;
+  animationStart: number;
+  animationDuration: number;
+  highlightUntil: number;
+  depthBias: number;
+  content?: ReactNode;
+  color?: {r: number, g: number, b: number} | null;
+  onClick?: () => void;
+  nextLayout?: CubeDefinition[];
+  frontFacePath?: Path2D;
+  // Position transition animation
+  startCx: number;
+  startCy: number;
+  startWidth: number;
+  startHeight: number;
+  targetCx: number;
+  targetCy: number;
+  targetWidth: number;
+  targetHeight: number;
+  posAnimStart: number;
+  posAnimDuration: number;
+};
+
+type CubeDefinition = {
+  row: number;      // starting row position
+  col: number;      // starting column position
+  rowSpan: number;  // height in cells (1 = single cell)
+  colSpan: number;  // width in cells (1 = single cell)
+  content?: ReactNode; // React content to display on this cube face
+  color?: string;   // optional hex color for the cube
+  onClick?: () => void; // Optional click handler - called when this cube is clicked
+  nextLayout?: CubeDefinition[]; // When clicked, smoothly transitions to this new layout
+};
+
+type ContentOverlay = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  content: ReactNode;
+  opacity: number;
+};
+
+type WaveTilesProps = {
+  className?: string;
+  cubeLayout?: CubeDefinition[];
+  globalColor?: string; // Optional default color for all cubes
+};
+
+export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTilesProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [contentOverlays, setContentOverlays] = useState<ContentOverlay[]>([]);
+  const overlaysRef = useRef<ContentOverlay[]>([]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const canvasEl: HTMLCanvasElement = canvas;
+    const drawingContext: CanvasRenderingContext2D = ctx;
+
+    const baseCells = 24;
+    const perspective = 500;
+    const viewYaw = 0;
+    const viewPitch = 0;
+    const maxCursorYaw = Math.PI / 6;
+    const maxCursorPitch = Math.PI / 8;
+    const maxVisibleCubes = 900;
+    const minCubeSize = 16;
+    const lightDir = normalize({ x: -0.35, y: -0.45, z: 1 });
+
+    let size = 0;
+    let rows = 0;
+    let cols = 0;
+    let cubes: Cube[] = [];
+    let raf = 0;
+    let lastTime = 0;
+    let bgCurrent = 215;
+    let bgTarget = 215;
+    let isLightMode = true;
+    let isPaused = false;
+    let cursorX = 0;
+    let cursorY = 0;
+    let viewportWidth = 0;
+    let viewportHeight = 0;
+    let devicePixelRatio = 1;
+    let lastOverlayCommit = 0;
+    let committedOverlayCount = 0;
+    let hasPlayedIntro = false;
+    let introActive = true;
+    let introStartTime = 0;
+    let introOverlayRevealAt = 0;
+    let introEndTime = 0;
+
+    // Throttle React state updates for overlays while still recalculating overlay geometry every frame.
+    // This keeps the canvas animation smooth by reducing React work under heavy motion.
+    const OVERLAY_COMMIT_INTERVAL_MS = 66;
+
+    // First-load construction tuning.
+    // Developers: tweak these values to adjust how "assembled" the landing animation feels.
+    const INTRO_CELL_MIN_OPACITY = 0.18;
+    const INTRO_CELL_POP_SCALE = 0.72;
+    const INTRO_CELL_POP_DURATION = 420;
+    const INTRO_CELL_STAGGER = 14;
+    const INTRO_OVERLAY_DELAY = 180;
+    const INTRO_OVERLAY_FADE_DURATION = 360;
+
+    // Layout transition state
+    type TransitionPhase = 'idle' | 'decombining' | 'recombining';
+    let transitionPhase: TransitionPhase = 'idle';
+    let pendingLayout: CubeDefinition[] | null = null;
+    let phaseEndTime = 0;
+    let transitionOriginRow = 0;
+    let transitionOriginCol = 0;
+
+    // Layout morph timings for click-triggered transitions.
+    const LAYOUT_SHRINK_SCALE = 0.22;
+    const LAYOUT_SHRINK_STAGGER = 28;
+    const LAYOUT_SHRINK_DURATION = 230;
+    const LAYOUT_GROW_SCALE = 0.22;
+    const LAYOUT_GROW_STAGGER = 24;
+    const LAYOUT_GROW_DURATION = 340;
+
+    function normalize(point: Point3D): Point3D {
+      const length = Math.hypot(point.x, point.y, point.z) || 1;
+
+      return {
+        x: point.x / length,
+        y: point.y / length,
+        z: point.z / length,
+      };
+    }
+
+    function cross(a: Point3D, b: Point3D): Point3D {
+      return {
+        x: a.y * b.z - a.z * b.y,
+        y: a.z * b.x - a.x * b.z,
+        z: a.x * b.y - a.y * b.x,
+      };
+    }
+
+    function subtract(a: Point3D, b: Point3D): Point3D {
+      return {
+        x: a.x - b.x,
+        y: a.y - b.y,
+        z: a.z - b.z,
+      };
+    }
+
+    function dot(a: Point3D, b: Point3D): number {
+      return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    function grayscale(value: number): string {
+      const channel = Math.max(0, Math.min(255, Math.round(value)));
+      return `rgb(${channel}, ${channel}, ${channel})`;
+    }
+
+    function getShadedColor(baseColor: {r: number, g: number, b: number} | null | undefined, brightness: number): string {
+      if (!baseColor) return grayscale(brightness);
+      
+      const factor = brightness / 255;
+      const r = Math.min(255, Math.max(0, Math.round(baseColor.r * factor)));
+      const g = Math.min(255, Math.max(0, Math.round(baseColor.g * factor)));
+      const b = Math.min(255, Math.max(0, Math.round(baseColor.b * factor)));
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function easeInOut(t: number): number {
+      return t * t * (3 - 2 * t);
+    }
+
+    function clamp(value: number, min: number, max: number): number {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function mix(from: number, to: number, amount: number): number {
+      return from + (to - from) * amount;
+    }
+
+    function hexToRgb(hex: string | undefined): {r: number, g: number, b: number} | null {
+      if (!hex) return null;
+      hex = hex.replace(/^#/, '');
+      if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+      if (hex.length !== 6) return null;
+      const num = parseInt(hex, 16);
+      return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+    }
+
+    function rotateY(point: Point3D, angle: number): Point3D {
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      return {
+        x: point.x * cos + point.z * sin,
+        y: point.y,
+        z: -point.x * sin + point.z * cos,
+      };
+    }
+
+    function rotateX(point: Point3D, angle: number): Point3D {
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      return {
+        x: point.x,
+        y: point.y * cos - point.z * sin,
+        z: point.y * sin + point.z * cos,
+      };
+    }
+
+    function project(point: Point3D): Point2D {
+      const depth = perspective / (perspective + point.z);
+      return {
+        x: point.x * depth,
+        y: point.y * depth,
+      };
+    }
+
+    function drawCube(
+      cube: Cube,
+      cursorYaw: number,
+      cursorPitch: number,
+      modeMix: number,
+      cubeOpacity = 1,
+      contentOpacityMultiplier = 1,
+    ): { overlay: ContentOverlay | null; frontFacePath: Path2D | null } {
+      const halfWidth = ((cube.width - 1) / 2) / Math.SQRT2;
+      const halfHeight = ((cube.height - 1) / 2) / Math.SQRT2;
+      // Use consistent depth for all cubes regardless of their width/height
+      const halfDepth = ((size - 1) / 2) / Math.SQRT2;
+      
+      const points: Point3D[] = [
+        { x: -halfWidth, y: -halfHeight, z: -halfDepth },
+        { x: halfWidth, y: -halfHeight, z: -halfDepth },
+        { x: halfWidth, y: halfHeight, z: -halfDepth },
+        { x: -halfWidth, y: halfHeight, z: -halfDepth },
+        { x: -halfWidth, y: -halfHeight, z: halfDepth },
+        { x: halfWidth, y: -halfHeight, z: halfDepth },
+        { x: halfWidth, y: halfHeight, z: halfDepth },
+        { x: -halfWidth, y: halfHeight, z: halfDepth },
+      ];
+
+      const transformed = points.map((point) => {
+        const rotated = rotateX(
+          rotateY(point, viewYaw + cube.angle + cursorYaw),
+          viewPitch + cursorPitch,
+        );
+        return {
+          x: rotated.x,
+          y: rotated.y,
+          z: rotated.z + cube.depthBias,
+        };
+      });
+      const projected = transformed.map(project);
+      const highlight = cube.highlightUntil > performance.now() ? 20 : 0;
+      const cubeCenter: Point3D = { x: 0, y: 0, z: cube.depthBias };
+
+      const ambient = mix(0.14, 0.14, modeMix);
+      const diffuse = 1 - ambient;
+      const minBrightness = mix(6, 200, modeMix);
+
+      const faces = [
+        { idx: [0, 1, 2, 3], lightBase: 255 - 42, darkBase: 42,  isBack: true },  // back
+        { idx: [4, 5, 6, 7], lightBase: 255 - 8,  darkBase: 8,   isBack: false, isFront: true }, // front
+        { idx: [0, 1, 5, 4], lightBase: 255 - 18, darkBase: 18,  isBack: false }, // bottom
+        { idx: [2, 3, 7, 6], lightBase: 255 - 12, darkBase: 12,  isBack: false }, // top
+        { idx: [1, 2, 6, 5], lightBase: 255 - 24, darkBase: 24,  isBack: false }, // right
+        { idx: [0, 3, 7, 4], lightBase: 255 - 10, darkBase: 10,  isBack: false }, // left
+      ].map((face) => ({
+        ...face,
+        base: mix(face.darkBase, face.lightBase, modeMix),
+        center: {
+          x: face.idx.reduce((sum, index) => sum + transformed[index].x, 0) / face.idx.length,
+          y: face.idx.reduce((sum, index) => sum + transformed[index].y, 0) / face.idx.length,
+          z: face.idx.reduce((sum, index) => sum + transformed[index].z, 0) / face.idx.length,
+        },
+        depth: face.idx.reduce((sum, index) => sum + transformed[index].z, 0) / face.idx.length,
+        normal: normalize(
+          cross(
+            subtract(transformed[face.idx[1]], transformed[face.idx[0]]),
+            subtract(transformed[face.idx[2]], transformed[face.idx[0]]),
+          ),
+        ),
+      }));
+
+      faces.sort((a, b) => a.depth - b.depth);
+
+      let contentOverlay: ContentOverlay | null = null;
+      let frontFacePath: Path2D | null = null;
+
+      for (const face of faces) {
+        const outward = subtract(face.center, cubeCenter);
+        const orientedNormal = dot(face.normal, outward) < 0
+          ? { x: -face.normal.x, y: -face.normal.y, z: -face.normal.z }
+          : face.normal;
+
+        if (orientedNormal.z <= 0) continue;
+
+        const pts = face.idx.map((i) => projected[i]);
+
+        const tracePath = () => {
+          drawingContext.beginPath();
+          drawingContext.moveTo(cube.cx + pts[0].x, cube.cy + pts[0].y);
+          for (let i = 1; i < pts.length; i++) {
+            drawingContext.lineTo(cube.cx + pts[i].x, cube.cy + pts[i].y);
+          }
+          drawingContext.closePath();
+        };
+
+        const light = Math.max(0, dot(orientedNormal, lightDir));
+        const brightness = face.isBack
+          ? Math.round(face.base)
+          : Math.round(Math.max(minBrightness, face.base * (ambient + light * diffuse) + highlight));
+
+        drawingContext.save();
+        drawingContext.globalAlpha = cubeOpacity;
+
+        tracePath();
+        drawingContext.fillStyle = getShadedColor(cube.color, brightness);
+        drawingContext.fill();
+
+        drawingContext.save();
+        tracePath();
+        drawingContext.clip();
+        const avgSize = (cube.width + cube.height) / 2;
+        const step = Math.max(5, avgSize / 4);
+        drawingContext.lineWidth = 0.5;
+        drawingContext.strokeStyle = brightness > (120 + 80 * modeMix)
+          ? `rgba(0,0,0,${mix(0.18, 0.08, modeMix).toFixed(3)})`
+          : `rgba(255,255,255,${mix(0.04, 0.44, modeMix).toFixed(3)})`;
+        const minX = Math.min(...pts.map((p) => cube.cx + p.x));
+        const maxX = Math.max(...pts.map((p) => cube.cx + p.x));
+        const minY = Math.min(...pts.map((p) => cube.cy + p.y));
+        const maxY = Math.max(...pts.map((p) => cube.cy + p.y));
+        for (let lx = Math.floor(minX / step) * step; lx <= maxX; lx += step) {
+          drawingContext.beginPath();
+          drawingContext.moveTo(lx, minY);
+          drawingContext.lineTo(lx, maxY);
+          drawingContext.stroke();
+        }
+        for (let ly = Math.floor(minY / step) * step; ly <= maxY; ly += step) {
+          drawingContext.beginPath();
+          drawingContext.moveTo(minX, ly);
+          drawingContext.lineTo(maxX, ly);
+          drawingContext.stroke();
+        }
+        drawingContext.restore();
+
+        tracePath();
+        drawingContext.strokeStyle = (modeMix > 0.5 ? brightness > 230 : brightness < 30)
+          ? `rgba(0,0,0,${mix(0.35, 0.15, modeMix).toFixed(3)})`
+          : `rgba(255,255,255,${mix(0.45, 0.75, modeMix).toFixed(3)})`;
+        drawingContext.lineWidth = 1;
+        drawingContext.stroke();
+        drawingContext.restore();
+
+        // Store front face path for click detection
+        if (face.isFront && orientedNormal.z > 0.3) {
+          const path = new Path2D();
+          path.moveTo(cube.cx + pts[0].x, cube.cy + pts[0].y);
+          for (let i = 1; i < pts.length; i++) {
+            path.lineTo(cube.cx + pts[i].x, cube.cy + pts[i].y);
+          }
+          path.closePath();
+          frontFacePath = path;
+        }
+
+        // Calculate content overlay for the front face if this cube has content
+        if (cube.content && face.isFront && orientedNormal.z > 0.3) {
+          const absolutePts = pts.map(p => ({ x: cube.cx + p.x, y: cube.cy + p.y }));
+          const minX = Math.min(...absolutePts.map(p => p.x));
+          const maxX = Math.max(...absolutePts.map(p => p.x));
+          const minY = Math.min(...absolutePts.map(p => p.y));
+          const maxY = Math.max(...absolutePts.map(p => p.y));
+          
+          contentOverlay = {
+            id: `${cube.row}-${cube.col}`,
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY,
+            content: cube.content,
+            opacity: Math.min(1, orientedNormal.z * 1.5) * contentOpacityMultiplier,
+          };
+        }
+      }
+
+      return { overlay: contentOverlay, frontFacePath };
+    }
+
+    function buildGrid() {
+      cubes = [];
+
+      const parsedGlobalColor = hexToRgb(globalColor);
+      // Preserve the current mode when rebuilding (e.g. after resize).
+      // In light mode all cubes are light except the trigger cube, and vice versa in dark mode.
+      const defaultAngle = isLightMode ? 0 : Math.PI;
+      const triggerAngle = isLightMode ? Math.PI : 0;
+
+      // Track which grid cells are covered by custom cubes
+      const coveredCells = new Set<string>();
+      
+      if (cubeLayout && cubeLayout.length > 0) {
+        cubeLayout.forEach(def => {
+          // Mark all cells covered by this custom cube
+          for (let r = def.row; r < def.row + def.rowSpan; r++) {
+            for (let c = def.col; c < def.col + def.colSpan; c++) {
+              coveredCells.add(`${r},${c}`);
+            }
+          }
+        });
+      }
+
+      // Create the default 1×1 grid, excluding covered cells
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          // Skip this cell if it's covered by a custom cube
+          if (coveredCells.has(`${row},${col}`)) continue;
+
+          const _cx1 = col * size + size / 2;
+          const _cy1 = row * size + size / 2;
+          cubes.push({
+            row,
+            col,
+            rowSpan: 1,
+            colSpan: 1,
+            cx: _cx1,
+            cy: _cy1,
+            width: size,
+            height: size,
+            angle: defaultAngle,
+            startAngle: defaultAngle,
+            targetAngle: defaultAngle,
+            animationStart: 0,
+            animationDuration: 0,
+            highlightUntil: 0,
+            depthBias: (row / Math.max(1, rows - 1) - 0.5) * 10 + (col / Math.max(1, cols - 1) - 0.5) * 10,
+            color: parsedGlobalColor,
+            frontFacePath: undefined,
+            startCx: _cx1, startCy: _cy1, startWidth: size, startHeight: size,
+            targetCx: _cx1, targetCy: _cy1, targetWidth: size, targetHeight: size,
+            posAnimStart: 0, posAnimDuration: 0,
+          });
+        }
+      }
+
+      // Add custom cubes
+      if (cubeLayout && cubeLayout.length > 0) {
+        cubeLayout.forEach((def) => {
+          const cubeWidth = def.colSpan * size;
+          const cubeHeight = def.rowSpan * size;
+          const centerX = def.col * size + cubeWidth / 2;
+          const centerY = def.row * size + cubeHeight / 2;
+
+          cubes.push({
+            row: def.row,
+            col: def.col,
+            rowSpan: def.rowSpan,
+            colSpan: def.colSpan,
+            cx: centerX,
+            cy: centerY,
+            width: cubeWidth,
+            height: cubeHeight,
+            angle: defaultAngle,
+            startAngle: defaultAngle,
+            targetAngle: defaultAngle,
+            animationStart: 0,
+            animationDuration: 0,
+            highlightUntil: 0,
+            depthBias: (def.row / Math.max(1, rows - 1) - 0.5) * 10 + (def.col / Math.max(1, cols - 1) - 0.5) * 10,
+            content: def.content,
+            color: def.color ? hexToRgb(def.color) : parsedGlobalColor,
+            onClick: def.onClick,
+            nextLayout: def.nextLayout,
+            frontFacePath: undefined,
+            startCx: centerX, startCy: centerY, startWidth: cubeWidth, startHeight: cubeHeight,
+            targetCx: centerX, targetCy: centerY, targetWidth: cubeWidth, targetHeight: cubeHeight,
+            posAnimStart: 0, posAnimDuration: 0,
+          });
+        });
+      }
+
+      // Find the top-right cube (trigger)
+      // It's the cube at row 0 with the highest right edge
+      let triggerCube: Cube | null = null;
+      let maxRight = -1;
+
+      for (const cube of cubes) {
+        // Only consider cubes touching row 0
+        if (cube.row === 0) {
+          const rightEdge = cube.col + cube.colSpan;
+          if (rightEdge > maxRight) {
+            maxRight = rightEdge;
+            triggerCube = cube;
+          }
+        }
+      }
+
+      // Keep trigger cube opposite to the rest, matching current mode.
+      if (triggerCube) {
+        triggerCube.angle = triggerAngle;
+        triggerCube.startAngle = triggerAngle;
+        triggerCube.targetAngle = triggerAngle;
+      }
+    }
+
+    function resizeCanvas() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      viewportWidth = width;
+      viewportHeight = height;
+      cursorX = width / 2;
+      cursorY = height / 2;
+
+      // HiDPI/Retina support: render at physical pixels while keeping math in CSS pixels.
+      devicePixelRatio = Math.max(1, window.devicePixelRatio || 1);
+      canvasEl.width = Math.floor(width * devicePixelRatio);
+      canvasEl.height = Math.floor(height * devicePixelRatio);
+      canvasEl.style.width = `${width}px`;
+      canvasEl.style.height = `${height}px`;
+      drawingContext.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+      size = Math.max(minCubeSize, Math.floor(Math.min(width, height) / baseCells));
+
+      while (Math.ceil(width / size) * Math.ceil(height / size) > maxVisibleCubes) {
+        size += 1;
+      }
+
+      cols = Math.max(1, Math.ceil(width / size));
+      rows = Math.max(1, Math.ceil(height / size));
+
+      buildGrid();
+
+      // Play construction intro only once on first load; resizing keeps the current static mode.
+      if (!hasPlayedIntro) {
+        startIntroAnimation();
+      }
+    }
+
+    // ── LAYOUT TRANSITION HELPERS ─────────────────────────────────────────
+
+    /** Called when a cube with `nextLayout` is clicked — starts wave shrink from clicked cube. */
+    function startLayoutTransition(newLayout: CubeDefinition[], sourceCube: Cube) {
+      if (transitionPhase !== 'idle') return; // Ignore clicks while transitioning
+      transitionPhase = 'decombining';
+      pendingLayout = newLayout;
+      const now = performance.now();
+      transitionOriginRow = sourceCube.row + sourceCube.rowSpan / 2;
+      transitionOriginCol = sourceCube.col + sourceCube.colSpan / 2;
+
+      let maxDistance = 0;
+
+      for (const cube of cubes) {
+        const cubeRow = cube.row + cube.rowSpan / 2;
+        const cubeCol = cube.col + cube.colSpan / 2;
+        const distance = Math.abs(cubeRow - transitionOriginRow) + Math.abs(cubeCol - transitionOriginCol);
+        maxDistance = Math.max(maxDistance, distance);
+
+        cube.startCx = cube.cx;
+        cube.startCy = cube.cy;
+        cube.startWidth = cube.width;
+        cube.startHeight = cube.height;
+        cube.targetCx = cube.cx;
+        cube.targetCy = cube.cy;
+        cube.targetWidth = Math.max(size * 0.08, cube.width * LAYOUT_SHRINK_SCALE);
+        cube.targetHeight = Math.max(size * 0.08, cube.height * LAYOUT_SHRINK_SCALE);
+        cube.posAnimStart = now + distance * LAYOUT_SHRINK_STAGGER;
+        cube.posAnimDuration = LAYOUT_SHRINK_DURATION;
+      }
+
+      phaseEndTime = now + maxDistance * LAYOUT_SHRINK_STAGGER + LAYOUT_SHRINK_DURATION + 20;
+    }
+
+    /** Rebuild cube list directly as the target layout and run center-anchored wave grow. */
+    function applyNewLayoutCubes() {
+      if (!pendingLayout) return;
+      const now = performance.now();
+      const parsedGlobalColor = hexToRgb(globalColor);
+      const defaultAngle = isLightMode ? 0 : Math.PI;
+      const triggerAngle = isLightMode ? Math.PI : 0;
+      const nextLayout = pendingLayout;
+      const previousByCell = new Map<string, Cube>();
+      for (const existingCube of cubes) {
+        for (let r = existingCube.row; r < existingCube.row + existingCube.rowSpan; r++) {
+          for (let c = existingCube.col; c < existingCube.col + existingCube.colSpan; c++) {
+            previousByCell.set(`${r},${c}`, existingCube);
+          }
+        }
+      }
+
+      // Cells covered by new multi-cell definitions
+      const coveredCells = new Set<string>();
+      nextLayout.forEach(def => {
+        for (let r = def.row; r < def.row + def.rowSpan; r++) {
+          for (let c = def.col; c < def.col + def.colSpan; c++) {
+            coveredCells.add(`${r},${c}`);
+          }
+        }
+      });
+
+      const newCubes: Cube[] = [];
+
+      // Create background 1x1 cells for uncovered positions.
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          if (coveredCells.has(`${row},${col}`)) continue;
+
+          const centerX = col * size + size / 2;
+          const centerY = row * size + size / 2;
+          const previous = previousByCell.get(`${row},${col}`);
+          const inheritedAngle = previous
+            ? ((previous.angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+            : defaultAngle;
+
+          newCubes.push({
+            row,
+            col,
+            rowSpan: 1,
+            colSpan: 1,
+            cx: centerX,
+            cy: centerY,
+            width: size,
+            height: size,
+            angle: inheritedAngle,
+            startAngle: inheritedAngle,
+            targetAngle: inheritedAngle,
+            animationStart: 0,
+            animationDuration: 0,
+            highlightUntil: 0,
+            depthBias: (row / Math.max(1, rows - 1) - 0.5) * 10 + (col / Math.max(1, cols - 1) - 0.5) * 10,
+            color: previous?.color ?? parsedGlobalColor,
+            frontFacePath: undefined,
+            startCx: centerX,
+            startCy: centerY,
+            startWidth: size,
+            startHeight: size,
+            targetCx: centerX,
+            targetCy: centerY,
+            targetWidth: size,
+            targetHeight: size,
+            posAnimStart: 0,
+            posAnimDuration: 0,
+          });
+        }
+      }
+
+      // Add merged cubes from the target layout.
+      nextLayout.forEach(def => {
+        const targetCx  = def.col * size + def.colSpan * size / 2;
+        const targetCy  = def.row * size + def.rowSpan * size / 2;
+        const targetW   = def.colSpan * size;
+        const targetH   = def.rowSpan * size;
+        const existing  = previousByCell.get(`${def.row},${def.col}`);
+        // Normalise to [0, 2π) to strip accumulated full-rotation drift from the morph spin
+        const rawAngle = existing?.angle ?? (isLightMode ? 0 : Math.PI);
+        const inheritedAngle = ((rawAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+
+        newCubes.push({
+          row: def.row, col: def.col,
+          rowSpan: def.rowSpan, colSpan: def.colSpan,
+          cx: targetCx, cy: targetCy,
+          width: targetW, height: targetH,
+          angle: inheritedAngle, startAngle: inheritedAngle, targetAngle: inheritedAngle,
+          animationStart: 0, animationDuration: 0, highlightUntil: 0,
+          depthBias: (def.row / Math.max(1, rows - 1) - 0.5) * 10 + (def.col / Math.max(1, cols - 1) - 0.5) * 10,
+          content: def.content,
+          color: def.color ? hexToRgb(def.color) : parsedGlobalColor,
+          onClick: def.onClick,
+          nextLayout: def.nextLayout,
+          startCx: targetCx,
+          startCy: targetCy,
+          startWidth: targetW,
+          startHeight: targetH,
+          targetCx,
+          targetCy,
+          targetWidth: targetW,
+          targetHeight: targetH,
+          posAnimStart: 0,
+          posAnimDuration: 0,
+        });
+      });
+
+      // Keep trigger cube opposite to the rest for the mode toggle behavior.
+      let triggerCube: Cube | null = null;
+      let maxRight = -1;
+      for (const cube of newCubes) {
+        if (cube.row === 0) {
+          const rightEdge = cube.col + cube.colSpan;
+          if (rightEdge > maxRight) {
+            maxRight = rightEdge;
+            triggerCube = cube;
+          }
+        }
+      }
+      for (const cube of newCubes) {
+        cube.angle = defaultAngle;
+        cube.startAngle = defaultAngle;
+        cube.targetAngle = defaultAngle;
+      }
+      if (triggerCube) {
+        triggerCube.angle = triggerAngle;
+        triggerCube.startAngle = triggerAngle;
+        triggerCube.targetAngle = triggerAngle;
+      }
+
+      // Grow wave from the original clicked trigger position.
+      let maxDistance = 0;
+      for (const cube of newCubes) {
+        const cubeRow = cube.row + cube.rowSpan / 2;
+        const cubeCol = cube.col + cube.colSpan / 2;
+        const distance = Math.abs(cubeRow - transitionOriginRow) + Math.abs(cubeCol - transitionOriginCol);
+        maxDistance = Math.max(maxDistance, distance);
+
+        cube.startCx = cube.targetCx;
+        cube.startCy = cube.targetCy;
+        cube.startWidth = cube.targetWidth * LAYOUT_GROW_SCALE;
+        cube.startHeight = cube.targetHeight * LAYOUT_GROW_SCALE;
+        cube.width = cube.startWidth;
+        cube.height = cube.startHeight;
+        cube.posAnimStart = now + distance * LAYOUT_GROW_STAGGER;
+        cube.posAnimDuration = LAYOUT_GROW_DURATION;
+      }
+
+      cubes = newCubes;
+      phaseEndTime = now + maxDistance * LAYOUT_GROW_STAGGER + LAYOUT_GROW_DURATION + 20;
+    }
+
+    function introDelayForCube(cube: Cube): number {
+      // Top-left wave keeps the reveal directional and deterministic.
+      return (cube.row + cube.col) * INTRO_CELL_STAGGER;
+    }
+
+    function applyIntroPopAnimation(now: number): number {
+      let maxDelay = 0;
+
+      for (const cube of cubes) {
+        const delay = introDelayForCube(cube);
+        maxDelay = Math.max(maxDelay, delay);
+
+        // Small random angular offset gives a subtle "panel alignment" feel.
+        const angleOffset = (Math.random() - 0.5) * 0.34;
+        const finalAngle = cube.angle;
+        cube.angle = finalAngle + angleOffset;
+        cube.startAngle = cube.angle;
+        cube.targetAngle = finalAngle;
+        cube.animationStart = now + delay;
+        cube.animationDuration = 340;
+
+        cube.startCx = cube.cx;
+        cube.startCy = cube.cy;
+        cube.targetCx = cube.cx;
+        cube.targetCy = cube.cy;
+
+        const finalWidth = cube.width;
+        const finalHeight = cube.height;
+        cube.startWidth = finalWidth * INTRO_CELL_POP_SCALE;
+        cube.startHeight = finalHeight * INTRO_CELL_POP_SCALE;
+        cube.targetWidth = finalWidth;
+        cube.targetHeight = finalHeight;
+        cube.width = cube.startWidth;
+        cube.height = cube.startHeight;
+        cube.posAnimStart = now + delay;
+        cube.posAnimDuration = INTRO_CELL_POP_DURATION;
+      }
+
+      return maxDelay;
+    }
+
+    function startIntroAnimation() {
+      hasPlayedIntro = true;
+      introActive = true;
+      const now = performance.now();
+      introStartTime = now;
+
+      // Keep intro on the current built layout only.
+      // Do not decompose merged cuboids into individual cells during first-load animation.
+      transitionPhase = 'idle';
+      pendingLayout = null;
+
+      const maxDelay = applyIntroPopAnimation(now);
+      introOverlayRevealAt = now + maxDelay + INTRO_OVERLAY_DELAY;
+      introEndTime = introOverlayRevealAt + INTRO_OVERLAY_FADE_DURATION + 220;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function render(timestamp: number) {
+      if (!lastTime) lastTime = timestamp;
+      const delta = Math.min(0.05, (timestamp - lastTime) / 1000);
+      lastTime = timestamp;
+
+      const fadeAmount = 1 - Math.exp(-delta * 1.5);
+      bgCurrent = mix(bgCurrent, bgTarget, fadeAmount);
+      drawingContext.fillStyle = grayscale(bgCurrent);
+      drawingContext.fillRect(0, 0, viewportWidth, viewportHeight);
+
+      const halfWidth = Math.max(1, viewportWidth / 2);
+      const halfHeight = Math.max(1, viewportHeight / 2);
+      const contentRevealMix = introActive
+        ? clamp((timestamp - introOverlayRevealAt) / INTRO_OVERLAY_FADE_DURATION, 0, 1)
+        : 1;
+
+      const newOverlays: ContentOverlay[] = [];
+
+      for (const cube of cubes) {
+        // ── Angle animation ──
+        if (timestamp >= cube.animationStart) {
+          const elapsed = timestamp - cube.animationStart;
+          const progress = Math.min(1, elapsed / Math.max(1, cube.animationDuration));
+          const eased = easeInOut(progress);
+          cube.angle = cube.startAngle + (cube.targetAngle - cube.startAngle) * eased;
+        }
+
+        // ── Position / size animation ──
+        if (cube.posAnimDuration > 0) {
+          const elapsed = timestamp - cube.posAnimStart;
+          const progress = clamp(elapsed / cube.posAnimDuration, 0, 1);
+          const eased = easeInOut(progress);
+          cube.cx     = cube.startCx     + (cube.targetCx     - cube.startCx)     * eased;
+          cube.cy     = cube.startCy     + (cube.targetCy     - cube.startCy)     * eased;
+          cube.width  = cube.startWidth  + (cube.targetWidth  - cube.startWidth)  * eased;
+          cube.height = cube.startHeight + (cube.targetHeight - cube.startHeight) * eased;
+        }
+
+        const nx = clamp((cursorX - cube.cx) / halfWidth, -1, 1);
+        const ny = clamp((cursorY - cube.cy) / halfHeight, -1, 1);
+        const cursorYaw = nx * maxCursorYaw;
+        const cursorPitch = -ny * maxCursorPitch;
+
+        const cubeModeMix = (Math.cos(cube.angle) + 1) / 2;
+        const introDelay = introDelayForCube(cube);
+        const introProgress = introActive
+          ? clamp((timestamp - (introStartTime + introDelay)) / INTRO_CELL_POP_DURATION, 0, 1)
+          : 1;
+        const cubeOpacity = introActive
+          ? mix(INTRO_CELL_MIN_OPACITY, 1, easeInOut(introProgress))
+          : 1;
+
+        const { overlay, frontFacePath } = drawCube(
+          cube,
+          cursorYaw,
+          cursorPitch,
+          cubeModeMix,
+          cubeOpacity,
+          contentRevealMix,
+        );
+        if (overlay) {
+          newOverlays.push(overlay);
+        }
+        cube.frontFacePath = frontFacePath || undefined;
+      }
+
+      // ── Transition phase state machine ──
+      if (transitionPhase === 'decombining' && timestamp >= phaseEndTime) {
+        applyNewLayoutCubes();
+        transitionPhase = 'recombining';
+      } else if (transitionPhase === 'recombining' && timestamp >= phaseEndTime) {
+        transitionPhase = 'idle';
+        pendingLayout = null;
+      }
+
+      // End intro only after structural transitions have completed.
+      if (introActive && transitionPhase === 'idle' && timestamp >= introEndTime) {
+        introActive = false;
+      }
+
+      // Update overlays ref and trigger state update if changed
+      const overlaysChanged = 
+        newOverlays.length !== overlaysRef.current.length ||
+        newOverlays.some((overlay, i) => {
+          const prev = overlaysRef.current[i];
+          return !prev || 
+            Math.abs(overlay.x - prev.x) > 0.5 || 
+            Math.abs(overlay.y - prev.y) > 0.5 ||
+            Math.abs(overlay.width - prev.width) > 0.5 ||
+            Math.abs(overlay.height - prev.height) > 0.5 ||
+            Math.abs(overlay.opacity - prev.opacity) > 0.01;
+        });
+
+      if (overlaysChanged) {
+        overlaysRef.current = newOverlays;
+
+        const shouldCommitNow =
+          newOverlays.length !== committedOverlayCount ||
+          timestamp - lastOverlayCommit >= OVERLAY_COMMIT_INTERVAL_MS;
+
+        if (shouldCommitNow) {
+          setContentOverlays(newOverlays);
+          lastOverlayCommit = timestamp;
+          committedOverlayCount = newOverlays.length;
+        }
+      }
+
+      raf = window.requestAnimationFrame(render);
+    }
+
+    function startLoop() {
+      if (isPaused) return;
+      window.cancelAnimationFrame(raf);
+      lastTime = 0;
+      raf = window.requestAnimationFrame(render);
+    }
+
+    function handleVisibilityChange() {
+      isPaused = document.hidden;
+
+      if (isPaused) {
+        window.cancelAnimationFrame(raf);
+      } else {
+        startLoop();
+      }
+    }
+
+    // Pointer events unify mouse + touch + pen and avoid parallel event handlers.
+    function handlePointerMove(e: PointerEvent) {
+      const rect = canvasEl.getBoundingClientRect();
+      cursorX = e.clientX - rect.left;
+      cursorY = e.clientY - rect.top;
+      // Path hit-testing uses canvas pixel space; convert CSS pixels for HiDPI canvases.
+      const hitX = cursorX * devicePixelRatio;
+      const hitY = cursorY * devicePixelRatio;
+
+      // Change cursor to pointer when hovering an interactive cube
+      if (e.pointerType !== 'mouse') return;
+      if (transitionPhase !== 'idle') {
+        canvasEl.style.cursor = 'wait';
+        return;
+      }
+      const isInteractive = cubes.some(cube =>
+        cube.frontFacePath &&
+        drawingContext.isPointInPath(cube.frontFacePath, hitX, hitY) &&
+        (cube.onClick || cube.nextLayout)
+      );
+      canvasEl.style.cursor = isInteractive ? 'pointer' : 'default';
+    }
+
+    function handlePointerDown(e: PointerEvent) {
+      if (transitionPhase !== 'idle') return; // Ignore clicks during transition
+      const rect = canvasEl.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      // Path hit-testing uses canvas pixel space; convert CSS pixels for HiDPI canvases.
+      const hitX = x * devicePixelRatio;
+      const hitY = y * devicePixelRatio;
+
+      // Check all cubes for clicks on their front faces
+      for (const cube of cubes) {
+        if (cube.frontFacePath && drawingContext.isPointInPath(cube.frontFacePath, hitX, hitY)) {
+          // nextLayout takes priority — triggers a full layout transition
+          if (cube.nextLayout) {
+            startLayoutTransition(cube.nextLayout, cube);
+            return;
+          }
+          // Otherwise call the custom onClick handler
+          if (cube.onClick) {
+            cube.onClick();
+            return;
+          }
+        }
+      }
+
+      // Fallback to original trigger cube behavior if no custom handler was found
+      let triggerCube: Cube | null = null;
+      let maxRight = -1;
+      
+      for (const cube of cubes) {
+        if (cube.row === 0) {
+          const rightEdge = cube.col + cube.colSpan;
+          if (rightEdge > maxRight) {
+            maxRight = rightEdge;
+            triggerCube = cube;
+          }
+        }
+      }
+
+      if (!triggerCube) return;
+
+      // Check if the trigger cube was clicked
+      const triggerLeft = triggerCube.col * size;
+      const triggerTop = triggerCube.row * size;
+      const triggerRight = triggerLeft + triggerCube.width;
+      const triggerBottom = triggerTop + triggerCube.height;
+      
+      const clickedTrigger = x >= triggerLeft && x < triggerRight && y >= triggerTop && y < triggerBottom;
+      
+      if (!clickedTrigger) return;
+
+      isLightMode = !isLightMode;
+      bgTarget = isLightMode ? 215 : 40;
+
+      const now = performance.now();
+      const triggerRow = triggerCube.row + triggerCube.rowSpan / 2;
+      const triggerCol = triggerCube.col + triggerCube.colSpan / 2;
+
+      for (const cube of cubes) {
+        const cubeRow = cube.row + cube.rowSpan / 2;
+        const cubeCol = cube.col + cube.colSpan / 2;
+        const distance = Math.abs(cubeRow - triggerRow) + Math.abs(cubeCol - triggerCol);
+        
+        cube.startAngle = cube.angle;
+
+        // Trigger cube flips opposite to others
+        const isTriggerCube = cube === triggerCube;
+        const target = isLightMode ? 0 : Math.PI;
+        cube.targetAngle = isTriggerCube ? (Math.PI - target) : target;
+
+        cube.animationStart = now + distance * 28;
+        cube.animationDuration = 420;
+        cube.highlightUntil = cube.animationStart + 320;
+      }
+    }
+
+    function handlePointerLeave() {
+      cursorX = viewportWidth / 2;
+      cursorY = viewportHeight / 2;
+    }
+
+    resizeCanvas();
+    startLoop();
+
+    window.addEventListener("resize", resizeCanvas);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    canvasEl.addEventListener("pointerdown", handlePointerDown);
+    canvasEl.addEventListener("pointermove", handlePointerMove);
+    canvasEl.addEventListener("pointerleave", handlePointerLeave);
+
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resizeCanvas);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      canvasEl.removeEventListener("pointerdown", handlePointerDown);
+      canvasEl.removeEventListener("pointermove", handlePointerMove);
+      canvasEl.removeEventListener("pointerleave", handlePointerLeave);
+    };
+  }, [cubeLayout, globalColor]);
+
+  return (
+    <div className={`w-screen h-screen overflow-hidden bg-neutral-900 relative ${className}`}>
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full block"
+        style={{ touchAction: 'none' }}
+      />
+      {contentOverlays.map((overlay) => (
+        <div
+          key={overlay.id}
+          className="absolute overflow-hidden pointer-events-none"
+          style={{
+            left: `${overlay.x}px`,
+            top: `${overlay.y}px`,
+            width: `${overlay.width}px`,
+            height: `${overlay.height}px`,
+            opacity: overlay.opacity,
+          }}
+        >
+          <div className="w-full h-full flex items-center justify-center pointer-events-none">
+            {overlay.content}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
