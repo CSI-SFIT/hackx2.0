@@ -15,8 +15,12 @@ type Point2D = {
 type Cube = {
   row: number;
   col: number;
+  rowSpan: number;
+  colSpan: number;
   cx: number;
   cy: number;
+  width: number;
+  height: number;
   angle: number;
   startAngle: number;
   targetAngle: number;
@@ -26,11 +30,19 @@ type Cube = {
   depthBias: number;
 };
 
-type WaveTilesProps = {
-  className?: string;
+type CubeDefinition = {
+  row: number;      // starting row position
+  col: number;      // starting column position
+  rowSpan: number;  // height in cells (1 = single cell)
+  colSpan: number;  // width in cells (1 = single cell)
 };
 
-export function WaveTiles({ className = "" }: WaveTilesProps) {
+type WaveTilesProps = {
+  className?: string;
+  cubeLayout?: CubeDefinition[];
+};
+
+export function WaveTiles({ className = "", cubeLayout }: WaveTilesProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -144,16 +156,20 @@ export function WaveTiles({ className = "" }: WaveTilesProps) {
     }
 
     function drawCube(cube: Cube, cursorYaw: number, cursorPitch: number, modeMix: number) {
-      const half = ((size - 1) / 2) / Math.SQRT2;
+      const halfWidth = ((cube.width - 1) / 2) / Math.SQRT2;
+      const halfHeight = ((cube.height - 1) / 2) / Math.SQRT2;
+      // Use consistent depth for all cubes regardless of their width/height
+      const halfDepth = ((size - 1) / 2) / Math.SQRT2;
+      
       const points: Point3D[] = [
-        { x: -half, y: -half, z: -half },
-        { x: half, y: -half, z: -half },
-        { x: half, y: half, z: -half },
-        { x: -half, y: half, z: -half },
-        { x: -half, y: -half, z: half },
-        { x: half, y: -half, z: half },
-        { x: half, y: half, z: half },
-        { x: -half, y: half, z: half },
+        { x: -halfWidth, y: -halfHeight, z: -halfDepth },
+        { x: halfWidth, y: -halfHeight, z: -halfDepth },
+        { x: halfWidth, y: halfHeight, z: -halfDepth },
+        { x: -halfWidth, y: halfHeight, z: -halfDepth },
+        { x: -halfWidth, y: -halfHeight, z: halfDepth },
+        { x: halfWidth, y: -halfHeight, z: halfDepth },
+        { x: halfWidth, y: halfHeight, z: halfDepth },
+        { x: -halfWidth, y: halfHeight, z: halfDepth },
       ];
 
       const transformed = points.map((point) => {
@@ -232,7 +248,8 @@ export function WaveTiles({ className = "" }: WaveTilesProps) {
         drawingContext.save();
         tracePath();
         drawingContext.clip();
-        const step = Math.max(5, size / 4);
+        const avgSize = (cube.width + cube.height) / 2;
+        const step = Math.max(5, avgSize / 4);
         drawingContext.lineWidth = 0.5;
         drawingContext.strokeStyle = brightness > (120 + 80 * modeMix)
           ? `rgba(0,0,0,${mix(0.18, 0.08, modeMix).toFixed(3)})`
@@ -267,25 +284,95 @@ export function WaveTiles({ className = "" }: WaveTilesProps) {
     function buildGrid() {
       cubes = [];
 
+      // Track which grid cells are covered by custom cubes
+      const coveredCells = new Set<string>();
+      
+      if (cubeLayout && cubeLayout.length > 0) {
+        cubeLayout.forEach(def => {
+          // Mark all cells covered by this custom cube
+          for (let r = def.row; r < def.row + def.rowSpan; r++) {
+            for (let c = def.col; c < def.col + def.colSpan; c++) {
+              coveredCells.add(`${r},${c}`);
+            }
+          }
+        });
+      }
+
+      // Create the default 1×1 grid, excluding covered cells
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          const isTopRight = row === 0 && col === cols - 1;
-          const initialAngle = isTopRight ? 0 : Math.PI;
+          // Skip this cell if it's covered by a custom cube
+          if (coveredCells.has(`${row},${col}`)) continue;
 
           cubes.push({
             row,
             col,
+            rowSpan: 1,
+            colSpan: 1,
             cx: col * size + size / 2,
             cy: row * size + size / 2,
-            angle: initialAngle,
-            startAngle: initialAngle,
-            targetAngle: initialAngle,
+            width: size,
+            height: size,
+            angle: Math.PI,  // Default dark, will be corrected for trigger
+            startAngle: Math.PI,
+            targetAngle: Math.PI,
             animationStart: 0,
             animationDuration: 0,
             highlightUntil: 0,
             depthBias: (row / Math.max(1, rows - 1) - 0.5) * 10 + (col / Math.max(1, cols - 1) - 0.5) * 10,
           });
         }
+      }
+
+      // Add custom cubes
+      if (cubeLayout && cubeLayout.length > 0) {
+        cubeLayout.forEach((def) => {
+          const cubeWidth = def.colSpan * size;
+          const cubeHeight = def.rowSpan * size;
+          const centerX = def.col * size + cubeWidth / 2;
+          const centerY = def.row * size + cubeHeight / 2;
+
+          cubes.push({
+            row: def.row,
+            col: def.col,
+            rowSpan: def.rowSpan,
+            colSpan: def.colSpan,
+            cx: centerX,
+            cy: centerY,
+            width: cubeWidth,
+            height: cubeHeight,
+            angle: Math.PI,  // Default dark, will be corrected for trigger
+            startAngle: Math.PI,
+            targetAngle: Math.PI,
+            animationStart: 0,
+            animationDuration: 0,
+            highlightUntil: 0,
+            depthBias: (def.row / Math.max(1, rows - 1) - 0.5) * 10 + (def.col / Math.max(1, cols - 1) - 0.5) * 10,
+          });
+        });
+      }
+
+      // Find the top-right cube (trigger)
+      // It's the cube at row 0 with the highest right edge
+      let triggerCube: Cube | null = null;
+      let maxRight = -1;
+
+      for (const cube of cubes) {
+        // Only consider cubes touching row 0
+        if (cube.row === 0) {
+          const rightEdge = cube.col + cube.colSpan;
+          if (rightEdge > maxRight) {
+            maxRight = rightEdge;
+            triggerCube = cube;
+          }
+        }
+      }
+
+      // Set trigger cube to light mode (angle 0)
+      if (triggerCube) {
+        triggerCube.angle = 0;
+        triggerCube.startAngle = 0;
+        triggerCube.targetAngle = 0;
       }
     }
 
@@ -371,22 +458,51 @@ export function WaveTiles({ className = "" }: WaveTilesProps) {
       const rect = canvasEl.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      const col = Math.floor(x / size);
-      const row = Math.floor(y / size);
 
-      if (row !== 0 || col !== cols - 1) return;
+      // Find the trigger cube (top-right cube at row 0)
+      let triggerCube: Cube | null = null;
+      let maxRight = -1;
+      
+      for (const cube of cubes) {
+        if (cube.row === 0) {
+          const rightEdge = cube.col + cube.colSpan;
+          if (rightEdge > maxRight) {
+            maxRight = rightEdge;
+            triggerCube = cube;
+          }
+        }
+      }
+
+      if (!triggerCube) return;
+
+      // Check if the trigger cube was clicked
+      const triggerLeft = triggerCube.col * size;
+      const triggerTop = triggerCube.row * size;
+      const triggerRight = triggerLeft + triggerCube.width;
+      const triggerBottom = triggerTop + triggerCube.height;
+      
+      const clickedTrigger = x >= triggerLeft && x < triggerRight && y >= triggerTop && y < triggerBottom;
+      
+      if (!clickedTrigger) return;
 
       isLightMode = !isLightMode;
       bgTarget = isLightMode ? 215 : 40;
 
       const now = performance.now();
+      const triggerRow = triggerCube.row + triggerCube.rowSpan / 2;
+      const triggerCol = triggerCube.col + triggerCube.colSpan / 2;
+
       for (const cube of cubes) {
-        const distance = Math.abs(cube.row - 0) + Math.abs(cube.col - (cols - 1));
+        const cubeRow = cube.row + cube.rowSpan / 2;
+        const cubeCol = cube.col + cube.colSpan / 2;
+        const distance = Math.abs(cubeRow - triggerRow) + Math.abs(cubeCol - triggerCol);
+        
         cube.startAngle = cube.angle;
 
-        const isTopRight = cube.row === 0 && cube.col === cols - 1;
+        // Trigger cube flips opposite to others
+        const isTriggerCube = cube === triggerCube;
         const target = isLightMode ? 0 : Math.PI;
-        cube.targetAngle = isTopRight ? (Math.PI - target) : target;
+        cube.targetAngle = isTriggerCube ? (Math.PI - target) : target;
 
         cube.animationStart = now + distance * 28;
         cube.animationDuration = 420;
