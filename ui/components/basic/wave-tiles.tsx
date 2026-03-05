@@ -105,12 +105,21 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
     let cubes: Cube[] = [];
     let raf = 0;
     let lastTime = 0;
-    let bgCurrent = 40;
-    let bgTarget = 40;
-    let isLightMode = false;
+    let bgCurrent = 215;
+    let bgTarget = 215;
+    let isLightMode = true;
     let isPaused = false;
     let cursorX = 0;
     let cursorY = 0;
+    let viewportWidth = 0;
+    let viewportHeight = 0;
+    let devicePixelRatio = 1;
+    let lastOverlayCommit = 0;
+    let committedOverlayCount = 0;
+
+    // Throttle React state updates for overlays while still recalculating overlay geometry every frame.
+    // This keeps the canvas animation smooth by reducing React work under heavy motion.
+    const OVERLAY_COMMIT_INTERVAL_MS = 66;
 
     // Layout transition state
     type TransitionPhase = 'idle' | 'decombining' | 'rotating' | 'recombining';
@@ -379,6 +388,10 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
       cubes = [];
 
       const parsedGlobalColor = hexToRgb(globalColor);
+      // Preserve the current mode when rebuilding (e.g. after resize).
+      // In light mode all cubes are light except the trigger cube, and vice versa in dark mode.
+      const defaultAngle = isLightMode ? 0 : Math.PI;
+      const triggerAngle = isLightMode ? Math.PI : 0;
 
       // Track which grid cells are covered by custom cubes
       const coveredCells = new Set<string>();
@@ -411,9 +424,9 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
             cy: _cy1,
             width: size,
             height: size,
-            angle: Math.PI,  // Default dark, will be corrected for trigger
-            startAngle: Math.PI,
-            targetAngle: Math.PI,
+            angle: defaultAngle,
+            startAngle: defaultAngle,
+            targetAngle: defaultAngle,
             animationStart: 0,
             animationDuration: 0,
             highlightUntil: 0,
@@ -444,9 +457,9 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
             cy: centerY,
             width: cubeWidth,
             height: cubeHeight,
-            angle: Math.PI,  // Default dark, will be corrected for trigger
-            startAngle: Math.PI,
-            targetAngle: Math.PI,
+            angle: defaultAngle,
+            startAngle: defaultAngle,
+            targetAngle: defaultAngle,
             animationStart: 0,
             animationDuration: 0,
             highlightUntil: 0,
@@ -479,11 +492,11 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
         }
       }
 
-      // Set trigger cube to light mode (angle 0)
+      // Keep trigger cube opposite to the rest, matching current mode.
       if (triggerCube) {
-        triggerCube.angle = 0;
-        triggerCube.startAngle = 0;
-        triggerCube.targetAngle = 0;
+        triggerCube.angle = triggerAngle;
+        triggerCube.startAngle = triggerAngle;
+        triggerCube.targetAngle = triggerAngle;
       }
     }
 
@@ -491,10 +504,18 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
       const width = window.innerWidth;
       const height = window.innerHeight;
 
-      canvasEl.width = width;
-      canvasEl.height = height;
+      viewportWidth = width;
+      viewportHeight = height;
       cursorX = width / 2;
       cursorY = height / 2;
+
+      // HiDPI/Retina support: render at physical pixels while keeping math in CSS pixels.
+      devicePixelRatio = Math.max(1, window.devicePixelRatio || 1);
+      canvasEl.width = Math.floor(width * devicePixelRatio);
+      canvasEl.height = Math.floor(height * devicePixelRatio);
+      canvasEl.style.width = `${width}px`;
+      canvasEl.style.height = `${height}px`;
+      drawingContext.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
 
       size = Math.max(minCubeSize, Math.floor(Math.min(width, height) / baseCells));
 
@@ -661,10 +682,10 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
       const fadeAmount = 1 - Math.exp(-delta * 1.5);
       bgCurrent = mix(bgCurrent, bgTarget, fadeAmount);
       drawingContext.fillStyle = grayscale(bgCurrent);
-      drawingContext.fillRect(0, 0, canvasEl.width, canvasEl.height);
+      drawingContext.fillRect(0, 0, viewportWidth, viewportHeight);
 
-      const halfWidth = Math.max(1, canvasEl.width / 2);
-      const halfHeight = Math.max(1, canvasEl.height / 2);
+      const halfWidth = Math.max(1, viewportWidth / 2);
+      const halfHeight = Math.max(1, viewportHeight / 2);
 
       const newOverlays: ContentOverlay[] = [];
 
@@ -730,7 +751,16 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
 
       if (overlaysChanged) {
         overlaysRef.current = newOverlays;
-        setContentOverlays(newOverlays);
+
+        const shouldCommitNow =
+          newOverlays.length !== committedOverlayCount ||
+          timestamp - lastOverlayCommit >= OVERLAY_COMMIT_INTERVAL_MS;
+
+        if (shouldCommitNow) {
+          setContentOverlays(newOverlays);
+          lastOverlayCommit = timestamp;
+          committedOverlayCount = newOverlays.length;
+        }
       }
 
       raf = window.requestAnimationFrame(render);
@@ -753,33 +783,41 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
       }
     }
 
-    function handleMouseMove(e: MouseEvent) {
+    // Pointer events unify mouse + touch + pen and avoid parallel event handlers.
+    function handlePointerMove(e: PointerEvent) {
       const rect = canvasEl.getBoundingClientRect();
       cursorX = e.clientX - rect.left;
       cursorY = e.clientY - rect.top;
+      // Path hit-testing uses canvas pixel space; convert CSS pixels for HiDPI canvases.
+      const hitX = cursorX * devicePixelRatio;
+      const hitY = cursorY * devicePixelRatio;
 
       // Change cursor to pointer when hovering an interactive cube
+      if (e.pointerType !== 'mouse') return;
       if (transitionPhase !== 'idle') {
         canvasEl.style.cursor = 'wait';
         return;
       }
       const isInteractive = cubes.some(cube =>
         cube.frontFacePath &&
-        drawingContext.isPointInPath(cube.frontFacePath, cursorX, cursorY) &&
+        drawingContext.isPointInPath(cube.frontFacePath, hitX, hitY) &&
         (cube.onClick || cube.nextLayout)
       );
       canvasEl.style.cursor = isInteractive ? 'pointer' : 'default';
     }
 
-    function handleClick(e: MouseEvent) {
+    function handlePointerDown(e: PointerEvent) {
       if (transitionPhase !== 'idle') return; // Ignore clicks during transition
       const rect = canvasEl.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+      // Path hit-testing uses canvas pixel space; convert CSS pixels for HiDPI canvases.
+      const hitX = x * devicePixelRatio;
+      const hitY = y * devicePixelRatio;
 
       // Check all cubes for clicks on their front faces
       for (const cube of cubes) {
-        if (cube.frontFacePath && drawingContext.isPointInPath(cube.frontFacePath, x, y)) {
+        if (cube.frontFacePath && drawingContext.isPointInPath(cube.frontFacePath, hitX, hitY)) {
           // nextLayout takes priority — triggers a full layout transition
           if (cube.nextLayout) {
             startLayoutTransition(cube.nextLayout);
@@ -844,9 +882,9 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
       }
     }
 
-    function handleMouseLeave() {
-      cursorX = canvasEl.width / 2;
-      cursorY = canvasEl.height / 2;
+    function handlePointerLeave() {
+      cursorX = viewportWidth / 2;
+      cursorY = viewportHeight / 2;
     }
 
     resizeCanvas();
@@ -854,17 +892,17 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
 
     window.addEventListener("resize", resizeCanvas);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    canvasEl.addEventListener("click", handleClick);
-    canvasEl.addEventListener("mousemove", handleMouseMove);
-    canvasEl.addEventListener("mouseleave", handleMouseLeave);
+    canvasEl.addEventListener("pointerdown", handlePointerDown);
+    canvasEl.addEventListener("pointermove", handlePointerMove);
+    canvasEl.addEventListener("pointerleave", handlePointerLeave);
 
     return () => {
       window.cancelAnimationFrame(raf);
       window.removeEventListener("resize", resizeCanvas);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      canvasEl.removeEventListener("click", handleClick);
-      canvasEl.removeEventListener("mousemove", handleMouseMove);
-      canvasEl.removeEventListener("mouseleave", handleMouseLeave);
+      canvasEl.removeEventListener("pointerdown", handlePointerDown);
+      canvasEl.removeEventListener("pointermove", handlePointerMove);
+      canvasEl.removeEventListener("pointerleave", handlePointerLeave);
     };
   }, [cubeLayout, globalColor]);
 
@@ -873,6 +911,7 @@ export function WaveTiles({ className = "", cubeLayout, globalColor }: WaveTiles
       <canvas
         ref={canvasRef}
         className="w-full h-full block"
+        style={{ touchAction: 'none' }}
       />
       {contentOverlays.map((overlay) => (
         <div
