@@ -108,9 +108,19 @@ type WaveTilesProps = {
   globalTexture?: WaveTileTexture; // Optional default texture for all cubes
   // Lightweight patch map: "row-col" -> partial update applied in-place without a full rebuild
   patchLayout?: Record<string, { color?: WaveTileColor; texture?: WaveTileTexture; content?: ReactNode }>;
+  onModeChange?: (isLightMode: boolean) => void;
+  trackPointerGlobally?: boolean;
 };
 
-export function WaveTiles({ className = "", cubeLayout, globalColor, globalTexture, patchLayout }: WaveTilesProps) {
+export function WaveTiles({
+  className = "",
+  cubeLayout,
+  globalColor,
+  globalTexture,
+  patchLayout,
+  onModeChange,
+  trackPointerGlobally = false,
+}: WaveTilesProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [contentOverlays, setContentOverlays] = useState<ContentOverlay[]>([]);
   const overlaysRef = useRef<ContentOverlay[]>([]);
@@ -122,8 +132,10 @@ export function WaveTiles({ className = "", cubeLayout, globalColor, globalTextu
     | ((patches: Record<string, { color?: WaveTileColor; texture?: WaveTileTexture; content?: ReactNode }>) => void)
     | null
   >(null);
+  const onModeChangeRef = useRef(onModeChange);
 
   latestCubeLayoutRef.current = cubeLayout;
+  onModeChangeRef.current = onModeChange;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -169,6 +181,8 @@ export function WaveTiles({ className = "", cubeLayout, globalColor, globalTextu
     let introStartTime = 0;
     let introOverlayRevealAt = 0;
     let introEndTime = 0;
+
+    onModeChangeRef.current?.(isLightMode);
 
     // Throttle React state updates for overlays while still recalculating overlay geometry every frame.
     // This keeps the canvas animation smooth by reducing React work under heavy motion.
@@ -1661,14 +1675,27 @@ export function WaveTiles({ className = "", cubeLayout, globalColor, globalTextu
     // Pointer events unify mouse + touch + pen and avoid parallel event handlers.
     function handlePointerMove(e: PointerEvent) {
       const rect = canvasEl.getBoundingClientRect();
-      cursorX = e.clientX - rect.left;
-      cursorY = e.clientY - rect.top;
+      const isInsideCanvas =
+        e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+
+      cursorX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+      cursorY = Math.max(0, Math.min(rect.height, e.clientY - rect.top));
+
+      if (!isInsideCanvas && !trackPointerGlobally) {
+        canvasEl.style.cursor = "default";
+        return;
+      }
+
       // Path hit-testing uses canvas pixel space; convert CSS pixels for HiDPI canvases.
       const hitX = cursorX * devicePixelRatio;
       const hitY = cursorY * devicePixelRatio;
 
       // Change cursor to pointer when hovering an interactive cube
       if (e.pointerType !== "mouse") return;
+      if (!isInsideCanvas) {
+        canvasEl.style.cursor = "default";
+        return;
+      }
       if (transitionPhase !== "idle") {
         canvasEl.style.cursor = "wait";
         return;
@@ -1734,6 +1761,7 @@ export function WaveTiles({ className = "", cubeLayout, globalColor, globalTextu
       if (!clickedTrigger) return;
 
       isLightMode = !isLightMode;
+      onModeChangeRef.current?.(isLightMode);
       bgTarget = isLightMode ? 215 : 40;
 
       const now = performance.now();
@@ -1852,7 +1880,11 @@ export function WaveTiles({ className = "", cubeLayout, globalColor, globalTextu
     window.addEventListener("resize", resizeCanvas);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     canvasEl.addEventListener("pointerdown", handlePointerDown);
-    canvasEl.addEventListener("pointermove", handlePointerMove);
+    if (trackPointerGlobally) {
+      window.addEventListener("pointermove", handlePointerMove);
+    } else {
+      canvasEl.addEventListener("pointermove", handlePointerMove);
+    }
     canvasEl.addEventListener("pointerleave", handlePointerLeave);
 
     return () => {
@@ -1860,10 +1892,14 @@ export function WaveTiles({ className = "", cubeLayout, globalColor, globalTextu
       window.removeEventListener("resize", resizeCanvas);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       canvasEl.removeEventListener("pointerdown", handlePointerDown);
-      canvasEl.removeEventListener("pointermove", handlePointerMove);
+      if (trackPointerGlobally) {
+        window.removeEventListener("pointermove", handlePointerMove);
+      } else {
+        canvasEl.removeEventListener("pointermove", handlePointerMove);
+      }
       canvasEl.removeEventListener("pointerleave", handlePointerLeave);
     };
-  }, [globalColor, globalTexture]);
+  }, [globalColor, globalTexture, trackPointerGlobally]);
 
   useEffect(() => {
     if (!transitionLayoutRef.current) return;
