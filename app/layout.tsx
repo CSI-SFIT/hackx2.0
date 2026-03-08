@@ -1,6 +1,8 @@
-import CustomCursor from "@/ui/components/custom-cursor";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { Nvbar } from "./components/nvbar";
+
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,9 +28,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased hover:cursor-none`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <CustomCursor />
+        <Nvbar />
         {children}
       </body>
     </html>
