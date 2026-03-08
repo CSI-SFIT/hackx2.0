@@ -24,16 +24,17 @@ type EventItem = {
 
 const EVENTS: EventItem[] = [
   // Day 1
-  { title: "Reporting", time: "08:00 AM", date: "April 18th", step: "01", accent: "#00f0ff" }, 
-  { title: "Inauguration Ceremony", time: "09:00 AM", date: "April 18th", step: "02", accent: "#ffcf00" }, 
+  { title: "Reporting", time: "08:00 AM", date: "April 18th", step: "01", accent: "#00f0ff" },
+  { title: "Inauguration Ceremony", time: "09:00 AM", date: "April 18th", step: "02", accent: "#ffcf00" },
   { title: "Hackathon Begins", time: "10:00 AM", date: "April 18th", step: "03", accent: "#ff00a0", highlight: true },
   { title: "Round 1 {Idea Pitch}", sub: "Judges visit your table to validate your idea", time: "12:00 PM", date: "April 18th", step: "04", accent: "#c0ff00" },
-  { title: "Mentoring Round", time: "03:00 PM", date: "April 18th", step: "05", accent: "#a000ff" }, 
+  { title: "Mentoring Round", time: "03:00 PM", date: "April 18th", step: "05", accent: "#a000ff" },
   { title: "Round 2 {Mid Project Eval}", sub: "Progress assess issuing points", time: "07:00 PM", date: "April 18th", step: "06", accent: "#ff5e00" },
   // Day 2
-  { title: "Reporting", time: "08:00 AM", date: "April 19th", step: "07", accent: "#00b8ff" }, 
-  { title: "Round 3 Final Judging", sub: "Final presentation", time: "09:00 AM", date: "April 19th", step: "08", accent: "#ff3c00" }, 
+  { title: "Reporting", time: "08:00 AM", date: "April 19th", step: "07", accent: "#00b8ff" },
+  { title: "Round 3 Final Judging", sub: "Final presentation", time: "09:00 AM", date: "April 19th", step: "08", accent: "#ff3c00" },
   { title: "Prize Distribution", time: "10:00 AM", date: "April 19th", step: "09", accent: "#00ff40", highlight: true },
+  { title: "Hackathon Ends", time: "11:00 AM", date: "April 19th", step: "10", accent: "#ff00a0", highlight: true },
 ];
 
 /* ─── 3-D Cube ────────────────────────────────────────────── */
@@ -153,12 +154,12 @@ export default function TimelinePage() {
           x: +(r.left + r.width / 2 - ir.left).toFixed(2),
           y: +(r.top + r.height / 2 - ir.top).toFixed(2),
         };
-      }).filter((p): p is {x: number, y: number} => p !== null);
+      }).filter((p): p is { x: number, y: number } => p !== null);
 
       if (pts.length > 0) {
         // Group points into rows based on vertical proximity
-        let ptsByRow: {x: number, y: number}[][] = [];
-        let currentRow: {x: number, y: number}[] = [];
+        let ptsByRow: { x: number, y: number }[][] = [];
+        let currentRow: { x: number, y: number }[] = [];
         let lastY: number | null = null;
 
         pts.forEach((p) => {
@@ -172,7 +173,7 @@ export default function TimelinePage() {
         });
         if (currentRow.length > 0) ptsByRow.push(currentRow);
 
-        let finalOrderPts: {x: number, y: number}[] = [];
+        let finalOrderPts: { x: number, y: number }[] = [];
         ptsByRow.forEach((row, rowIndex) => {
           row.sort((a, b) => a.x - b.x); // sort left-to-right
           if (rowIndex % 2 !== 0) {
@@ -183,36 +184,36 @@ export default function TimelinePage() {
 
         const radius = 30; // pixel radius for corners
         let path = `M ${finalOrderPts[0].x},${finalOrderPts[0].y}`;
-        
+
         for (let i = 1; i < finalOrderPts.length; i++) {
           const pPrev = finalOrderPts[i - 1];
           const pCurr = finalOrderPts[i];
           const pNext = i + 1 < finalOrderPts.length ? finalOrderPts[i + 1] : null;
 
           if (pNext) {
-              const dx1 = pCurr.x - pPrev.x;
-              const dy1 = pCurr.y - pPrev.y;
-              const dx2 = pNext.x - pCurr.x;
-              const dy2 = pNext.y - pCurr.y;
-              
-              const isHorizontal1 = Math.abs(dx1) > Math.abs(dy1);
-              const isHorizontal2 = Math.abs(dx2) > Math.abs(dy2);
-              
-              if (isHorizontal1 !== isHorizontal2) {
-                  const len1 = Math.hypot(dx1, dy1);
-                  const len2 = Math.hypot(dx2, dy2);
-                  const r1 = Math.min(radius, len1 / 2.1);
-                  const r2 = Math.min(radius, len2 / 2.1);
-                  
-                  const cx1 = pCurr.x - (dx1 / len1) * r1;
-                  const cy1 = pCurr.y - (dy1 / len1) * r1;
-                  const cx2 = pCurr.x + (dx2 / len2) * r2;
-                  const cy2 = pCurr.y + (dy2 / len2) * r2;
-                  
-                  path += ` L ${cx1.toFixed(2)},${cy1.toFixed(2)}`;
-                  path += ` Q ${pCurr.x.toFixed(2)},${pCurr.y.toFixed(2)} ${cx2.toFixed(2)},${cy2.toFixed(2)}`;
-                  continue;
-              }
+            const dx1 = pCurr.x - pPrev.x;
+            const dy1 = pCurr.y - pPrev.y;
+            const dx2 = pNext.x - pCurr.x;
+            const dy2 = pNext.y - pCurr.y;
+
+            const isHorizontal1 = Math.abs(dx1) > Math.abs(dy1);
+            const isHorizontal2 = Math.abs(dx2) > Math.abs(dy2);
+
+            if (isHorizontal1 !== isHorizontal2) {
+              const len1 = Math.hypot(dx1, dy1);
+              const len2 = Math.hypot(dx2, dy2);
+              const r1 = Math.min(radius, len1 / 2.1);
+              const r2 = Math.min(radius, len2 / 2.1);
+
+              const cx1 = pCurr.x - (dx1 / len1) * r1;
+              const cy1 = pCurr.y - (dy1 / len1) * r1;
+              const cx2 = pCurr.x + (dx2 / len2) * r2;
+              const cy2 = pCurr.y + (dy2 / len2) * r2;
+
+              path += ` L ${cx1.toFixed(2)},${cy1.toFixed(2)}`;
+              path += ` Q ${pCurr.x.toFixed(2)},${pCurr.y.toFixed(2)} ${cx2.toFixed(2)},${cy2.toFixed(2)}`;
+              continue;
+            }
           }
           path += ` L ${pCurr.x.toFixed(2)},${pCurr.y.toFixed(2)}`;
         }
@@ -263,44 +264,17 @@ export default function TimelinePage() {
 
       {/* ── Heading ── */}
       <div className="relative z-10 pt-32 pb-8 text-center px-4">
-        <motion.h1
-          initial={{ opacity: 0, y: -20, filter: "blur(10px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          transition={{ duration: 1, ease: "easeOut" }}
+        <h1
           className={`font-black uppercase tracking-tighter text-6xl sm:text-7xl md:text-8xl lg:text-9xl ${textColor}`}
         >
           TIMELINE
-        </motion.h1>
-        <motion.div
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: 1 }}
-          transition={{ delay: 0.3, duration: 1, ease: "easeOut" }}
-          className="flex items-center justify-center gap-4 mt-8 mb-6"
-        >
-          <div
-            className={`h-1 w-16 md:w-32 rounded-full ${light ? "bg-slate-300" : "bg-zinc-800"
-              }`}
-          />
-          <div
-            className="h-4 w-4 md:h-5 md:w-5 rotate-45 shrink-0"
-            style={{
-              background: "#ff00a0",
-              boxShadow: "0 0 30px #ff00a0, 0 0 10px #ff00a0 inset",
-            }}
-          />
-          <div
-            className={`h-1 w-16 md:w-32 rounded-full ${light ? "bg-slate-300" : "bg-zinc-800"
-              }`}
-          />
-        </motion.div>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className={`font-bold uppercase tracking-[0.2em] text-xs md:text-sm ${mutedColor}`}
+        </h1>
+
+        <p
+          className={`text-center font-black uppercase tracking-widest text-sm mb-16 px-4 py-2 border-[3px] mx-auto w-fit ${isLightMode ? "border-black bg-[#c0ff00] text-black" : "border-[#c0ff00] bg-black text-[#c0ff00]"}`}
         >
           Key Milestones · HackX 2.0 · 2026
-        </motion.p>
+        </p>
       </div>
 
       {/* ── Timeline Grid ── */}
@@ -332,54 +306,51 @@ export default function TimelinePage() {
               zIndex: -1
             }}
           >
-            {/* Background solid path track - NO GRADIENTS */}
+            {/* Background solid path track */}
             <path
               d={svgPathD}
               fill="none"
-              stroke={light ? "#e2e8f0" : "#27272a"}
-              strokeWidth={10}
+              stroke={light ? "#000" : "#444"}
+              strokeWidth={14}
               strokeLinecap="round"
               strokeLinejoin="round"
+              className="drop-shadow-none"
             />
             {/* Glowing active solid path trace mapped to scroll state via framer motion */}
             <motion.path
               d={svgPathD}
               fill="none"
               stroke="#ff00a0"
-              strokeWidth={10}
+              strokeWidth={14}
               strokeLinecap="round"
               strokeLinejoin="round"
               style={{ pathLength: drawProgress }}
+              className="drop-shadow-[0_0_15px_#ff00a0]"
             />
           </svg>
 
           {/* 4-column event grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16 lg:gap-y-24">
             {EVENTS.map((e, i) => {
-              const glowingShadow = e.highlight
-                ? `0 0 40px ${e.accent}40, inset 0 0 20px ${e.accent}15`
-                : light
-                  ? `0 10px 40px rgba(0,0,0,0.1), 0 2px 10px rgba(0,0,0,0.05)`
-                  : `0 10px 40px rgba(0,0,0,0.8), 0 2px 10px rgba(0,0,0,0.5)`;
+              const solidShadow = `10px 10px 0 ${e.accent}`;
 
+              const cardClasses = `w-full h-full max-w-sm border-[3px] p-8 flex flex-col items-center relative overflow-hidden transition-all duration-500 hover:-translate-y-2 ${light
+                ? "border-black/85 bg-[#fafafa] text-black hover:bg-white"
+                : "border-black bg-[#0a0a0a] text-white hover:bg-[#111]"
+                }`;
               return (
-                <motion.div
+                <div
                   key={i}
-                  initial={{ opacity: 0, y: 30, filter: "blur(5px)" }}
-                  whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                  viewport={{ margin: "-50px", once: true }}
-                  transition={{ duration: 0.6, ease: "easeOut" }}
-                  className="flex flex-col items-center group"
+                  className="flex flex-col items-center group h-full"
                 >
                   {/* Solid Non-Glass Card Wrapper */}
                   <div
-                    className={`w-full max-w-sm rounded-[2rem] border ${cardBorder} ${cardBg} p-8 flex flex-col items-center relative overflow-hidden transition-transform duration-500 hover:-translate-y-2`}
-                    style={{ boxShadow: glowingShadow }}
+                    ref={(el) => { cubeRefs.current[i] = el; }}
+                    className={cardClasses}
+                    style={{ boxShadow: solidShadow }}
                   >
-                    <div className="absolute top-0 left-0 w-full h-1" style={{ background: e.accent }} />
-
                     {/* Cube Attachment Point (The SVG path connects to these) */}
-                    <div ref={(el) => { cubeRefs.current[i] = el; }} className="relative z-10 mb-8 p-3 bg-black/5 dark:bg-white/5 rounded-2xl flex flex-col items-center">
+                    <div className="relative z-10 mb-8 p-3 bg-black/5 dark:bg-white/5 rounded-2xl flex flex-col items-center">
                       <Cube3D accent={e.accent} isLight={light} step={e.step} className="group-hover:scale-110 transition-transform duration-500" />
                     </div>
 
@@ -409,7 +380,7 @@ export default function TimelinePage() {
                       </span>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>
