@@ -1,8 +1,10 @@
 "use client";
 
 import { WaveTiles } from "@/ui/components/basic/wave-tiles";
+import ScrollSequence from "@/ui/components/scroll-sequence";
+import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 
 const STYLES = `
   @keyframes float {
@@ -81,7 +83,7 @@ function HighlightCard({
 }: {
   title: string;
   description: string;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
   isLightMode: boolean;
   delay: number;
@@ -148,550 +150,770 @@ function CountdownItem({
   );
 }
 
+const ShieldIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
+
+const FinTechIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <line x1="12" y1="1" x2="12" y2="23" />
+    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+  </svg>
+);
+
+const CityIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M3 21h18" />
+    <path d="M3 7v14" />
+    <path d="M13 3v18" />
+    <path d="M21 9v12" />
+    <path d="M7 11h2" />
+    <path d="M7 15h2" />
+    <path d="M17 7h2" />
+    <path d="M17 11h2" />
+    <path d="M17 15h2" />
+  </svg>
+);
+
+const MobilityIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+    <path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+    <path d="M9 12H4s.5-1 1-1" />
+    <path d="M15 20v-5s-1 .5-1 1" />
+  </svg>
+);
+
+const GlobeIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <circle cx="12" cy="12" r="10" />
+    <line x1="2" y1="12" x2="22" y2="12" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+  </svg>
+);
+
+const ZapIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </svg>
+);
+
+const TrophyIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+    <path d="M4 22h16" />
+    <path d="M10 14.66V17c0 .55.47.98.97 1.21C12.23 18.81 14.23 18.81 15 17v-2.34" />
+    <path d="M18 5V1c0-1-1-1-1-1H7s-1 0-1 1v4" />
+    <path d="M18 5c0 4.5-2 9-6 9s-6-4.5-6-9" />
+  </svg>
+);
+
+const GiftIcon = ({ className }: { className?: string }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <polyline points="20 12 20 22 4 22 4 12" />
+    <rect x="2" y="7" width="20" height="5" />
+    <line x1="12" y1="22" x2="12" y2="7" />
+    <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+    <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+  </svg>
+);
+
+const ThemeToggle = ({
+  isLightMode,
+  toggle,
+}: {
+  isLightMode: boolean;
+  toggle: () => void;
+}) => {
+  return (
+    <button
+      onClick={toggle}
+      className={`pointer-events-auto group relative flex h-14 w-14 items-center justify-center border-[3px] transition-all duration-300 hover:scale-105 active:scale-95 ${
+        isLightMode
+          ? "border-black bg-white shadow-[4px_4px_0_#000]"
+          : "border-white bg-[#111] shadow-[4px_4px_0_#fff]"
+      }`}
+      aria-label="Toggle theme"
+    >
+      <div
+        className={`relative h-8 w-8 transition-transform duration-500 ${isLightMode ? "rotate-0" : "rotate-[360deg]"}`}
+      >
+        {isLightMode ? (
+          /* Sun Icon for Light Mode */
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-full w-full text-[#ff00a0]"
+          >
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        ) : (
+          /* Moon Icon for Dark Mode */
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-full w-full text-[#c0ff00]"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        )}
+      </div>
+    </button>
+  );
+};
+
 export default function Home() {
   const [isLightMode, setIsLightMode] = useState(false);
+  const [forceTheme, setForceTheme] = useState(false);
   const [isModeAnimating, setIsModeAnimating] = useState(false);
   const hasMountedRef = useRef(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
-      return;
-    }
-    setIsModeAnimating(true);
-    const animationTimer = window.setTimeout(
-      () => setIsModeAnimating(false),
-      520,
-    );
-    return () => window.clearTimeout(animationTimer);
-  }, [isLightMode]);
+  const { scrollYProgress } = useScroll({
+    target: scrollContainerRef,
+    offset: ["start start", "end end"],
+  });
+
+  // Phase 1: Intro (HACKX 2.0 reveal)
+  const introOpacity = useTransform(scrollYProgress, [0, 0.1, 0.15], [1, 1, 0]);
+  const introY = useTransform(scrollYProgress, [0, 0.15], [0, -40]);
+
+  // Phase 2: Mission (Driving Digital Bharat)
+  const missionOpacity = useTransform(
+    scrollYProgress,
+    [0.2, 0.25, 0.35, 0.4],
+    [0, 1, 1, 0],
+  );
+  const missionY = useTransform(
+    scrollYProgress,
+    [0.2, 0.25, 0.35, 0.4],
+    [30, 0, 0, -30],
+  );
+
+  // Phase 3: The Loot (Prizes)
+  const lootOpacity = useTransform(
+    scrollYProgress,
+    [0.45, 0.5, 0.6, 0.65],
+    [0, 1, 1, 0],
+  );
+  const lootY = useTransform(
+    scrollYProgress,
+    [0.45, 0.5, 0.6, 0.65],
+    [30, 0, 0, -30],
+  );
+
+  // Phase 4: The Domains (Tracks)
+  const domainsPhaseOpacity = useTransform(
+    scrollYProgress,
+    [0.7, 0.75, 0.85, 0.9],
+    [0, 1, 1, 0],
+  );
+  const domainsPhaseY = useTransform(
+    scrollYProgress,
+    [0.7, 0.75, 0.85, 0.9],
+    [30, 0, 0, -30],
+  );
+
+  // Phase 5: Pillars (Highlights)
+  const pillarsOpacity = useTransform(
+    scrollYProgress,
+    [0.92, 0.96, 0.99, 1],
+    [0, 1, 1, 1],
+  );
+  const pillarsY = useTransform(scrollYProgress, [0.92, 0.96], [30, 0]);
+
+  // The original useEffect for isModeAnimating is removed as per instructions.
 
   return (
     <div
-      className={`relative min-h-screen overflow-hidden transition-colors duration-500 ${isLightMode ? "bg-[#f4f0ea]" : "bg-[#0a0a0a]"}`}
+      className={`relative min-h-screen font-sans selection:bg-[#ff00a0] selection:text-white ${isLightMode ? "bg-[#f5f5f5]" : "bg-black"}`}
     >
       <style dangerouslySetInnerHTML={{ __html: STYLES }} />
-
+      {/* Grid Pattern Background - Keeping this for texture */}
       <div
-        className={`fixed inset-0 z-0 opacity-50 ${isLightMode ? "bg-grid-light" : "bg-grid-dark"}`}
+        className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }}
       />
 
-      <div className="fixed inset-0 z-0 grayscale contrast-125">
+      {/* Floating Wave Tiles Background - Design Uniformity with Sponsors */}
+      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <WaveTiles
-          className={isLightMode ? "opacity-75" : "opacity-30"}
+          className={isLightMode ? "opacity-40" : "opacity-30"}
           onModeChange={setIsLightMode}
-          trackPointerGlobally={true}
-          optimizeForPerformance={true}
+          // optimizeForPerformance={true}
+          // trackPointerGlobally={true}
         />
       </div>
 
-      {/* Pop-art geometric background shapes */}
-      <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-60">
+      {/* Floating Canvas Sequence Layer */}
+      <div className="absolute top-0 left-0 w-full z-0">
+        <ScrollSequence
+          frameCount={192}
+          padLength={3}
+          fileExtension=".png"
+          filePrefix="frame-"
+          isLightMode={isLightMode}
+          height="h-[600vh]"
+        />
+        {/* Soft bottom blend mask to merge video to solid body section smoothly */}
         <div
-          className={`absolute top-[10%] right-[-5%] w-[40vw] h-[40vw] rounded-full border-16 ${isLightMode ? "border-black opacity-10" : "border-[#ff00a0] opacity-20"} animate-[float_12s_ease-in-out_infinite]`}
-        ></div>
-        <div
-          className={`absolute bottom-[5%] left-[-5%] w-[30vw] h-[30vw] border-16 ${isLightMode ? "border-black opacity-10" : "border-[#00f0ff] opacity-20"} rotate-12 animate-[float-reverse_15s_ease-in-out_infinite]`}
-        ></div>
+          className={`absolute bottom-0 left-0 w-full h-[50vh] bg-linear-to-t ${isLightMode ? "from-[#f5f5f5] to-transparent" : "from-black to-transparent"} z-10`}
+        />
       </div>
 
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-20">
         <div className="absolute top-[25%] -left-[10vw] flex whitespace-nowrap animate-[marquee_40s_linear_infinite]">
           <span
-            className={`text-[25vw] font-black uppercase tracking-tighter ${isLightMode ? "text-outline-light" : "text-outline-dark"}`}
+            className={`text-[25vw] font-black uppercase tracking-tighter ${isLightMode ? "text-outline-2 text-outline-light" : "text-outline-dark"}`}
           >
             HACKX 2.0 HACKX 2.0 HACKX 2.0 HACKX 2.0
           </span>
         </div>
         <div className="absolute bottom-[10%] -left-[20vw] flex whitespace-nowrap animate-[marquee_35s_linear_infinite_reverse]">
-          <span
-            className={`text-[15vw] font-black uppercase tracking-tighter `}
-          >
+          <span className={`text-[15vw] font-black uppercase tracking-tighter`}>
             BUILD THE FUTURE BUILD THE FUTURE BUILD THE FUTURE
           </span>
         </div>
       </div>
 
-      <div className="pointer-events-none relative z-10 flex min-h-screen flex-col overflow-y-auto overflow-x-hidden">
-        <nav className="pointer-events-none relative z-50 flex w-full items-center justify-between px-6 py-6 sm:px-12 bg-transparent">
-          <div
-            className={`pointer-events-auto flex h-14 w-14 items-center justify-center border-[3px] text-2xl font-black uppercase tracking-tighter transition-colors duration-500 hover:rotate-12 hover:scale-110 ${isLightMode ? "border-black bg-[#c0ff00] text-black shadow-[4px_4px_0_#000]" : "border-white bg-[#c0ff00] text-black shadow-[4px_4px_0_#fff]"}`}
-          >
-            HX
-          </div>
-          <div
-            className={`pointer-events-auto hidden items-center border-[3px] px-8 py-3 text-sm font-bold uppercase tracking-widest sm:flex gap-8 transition-colors duration-500 ${isLightMode ? "border-black bg-white shadow-[6px_6px_0_#000] text-black" : "border-white/30 bg-black/60 shadow-[6px_6px_0_rgba(255,255,255,0.3)] text-white"}`}
-          >
-            <Link href="/" className="hover:text-[#ff00a0] transition-colors">
-              Home
-            </Link>
-            <Link
-              href="/about"
-              className="hover:text-[#ff00a0] transition-colors"
-            >
-              About
-            </Link>
-            <Link
-              href="/schedule"
-              className="hover:text-[#ff00a0] transition-colors"
-            >
-              Schedule
-            </Link>
-            <Link
-              href="/sponsors"
-              className="hover:text-[#ff00a0] transition-colors"
-            >
-              Sponsors
-            </Link>
-            <Link
-              href="/contact"
-              className="hover:text-[#ff00a0] transition-colors"
-            >
-              Contact
-            </Link>
-          </div>
-        </nav>
-
+      <div className="relative z-10 flex min-h-screen flex-col">
         {/* Main Content */}
-        <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
-          <div className="relative pt-12 sm:pt-16 flex flex-col items-center sm:items-start text-center sm:text-left z-20">
-            {/* Floating glass elements */}
-            <FloatingBadge
-              isLightMode={isLightMode}
-              styleName="pointer-events-none left-[2%] top-[-10%] hidden lg:flex"
-              delay={0.5}
-              floatRev
-            >
-              <div className="flex flex-col gap-1 text-[12px] font-mono font-bold leading-none">
-                <span style={{ color: isLightMode ? "#ff00a0" : "#ff00a0" }}>
-                  import
-                </span>
-                <span style={{ color: isLightMode ? "#000" : "#fff" }}>
-                  {"{"} future {"}"}
-                </span>
-                <span style={{ color: isLightMode ? "#000" : "#fff" }}>
-                  from <span style={{ color: "#c0ff00" }}>'now';</span>
-                </span>
-              </div>
-            </FloatingBadge>
-
-            <FloatingBadge
-              isLightMode={isLightMode}
-              styleName="pointer-events-none right-[2%] top-[5%] hidden lg:flex"
-              delay={1.2}
-            >
-              <span
-                className={`text-3xl font-black ${isLightMode ? "text-outline-light" : "text-outline-dark"}`}
-                style={{
-                  WebkitTextStroke: isLightMode ? "2px black" : "2px white",
-                }}
-              >
-                {"< />"}
-              </span>
-            </FloatingBadge>
-
-            <FloatingBadge
-              isLightMode={isLightMode}
-              styleName="pointer-events-none left-[35%] top-[50%] hidden lg:flex rounded-full"
-              delay={0.8}
-            >
-              <span className="text-2xl drop-shadow-[2px_2px_0_#ff00a0]">
-                ✨
-              </span>
-            </FloatingBadge>
-
-            <FloatingBadge
-              isLightMode={isLightMode}
-              styleName="pointer-events-none right-[5%] top-[70%] hidden lg:flex"
-              delay={1.5}
-              floatRev
-            >
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-[#00f0ff] animate-pulse"></div>
-                <span
-                  className={`text-[10px] font-black tracking-[0.2em] ${isLightMode ? "text-black" : "text-white"}`}
+        <main className="relative z-20 flex w-full flex-1 flex-col">
+          {/* Height matched to the length of the sticky ScrollSequence to keep layout linear */}
+          <div
+            ref={scrollContainerRef}
+            className="h-[600vh] w-full relative z-20 pointer-events-auto"
+          >
+            {/* Sticky pin wrap so text stays fixed while scrolling the background frames */}
+            <div className="sticky top-0 h-[calc(100vh-150px)] w-full flex flex-col overflow-hidden">
+              <div className="relative w-full mx-auto flex-1 flex flex-col justify-between px-6 sm:px-12 pointer-events-none">
+                {/* GIANT BACKGROUND TITLE */}
+                <motion.div
+                  style={{ opacity: introOpacity, y: introY }}
+                  className="absolute top-[40%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center flex flex-col items-center justify-center pointer-events-none z-0"
                 >
-                  STATUS: LIVE
-                </span>
-              </div>
-            </FloatingBadge>
-
-            {/* Hero Text */}
-            <div
-              className={`relative z-10 lg:ml-8 inline-block border-[3px] px-6 py-2 text-xs font-black uppercase tracking-[0.3em] transition-transform hover:scale-105 ${isLightMode ? "border-black bg-[#ff00a0] text-white shadow-[4px_4px_0_#000]" : "border-white bg-[#ff00a0] text-white shadow-[4px_4px_0_#fff]"}`}
-            >
-              CSI & GDG SFIT PRESENTS
-            </div>
-
-            <h1 className="relative z-10 lg:ml-8 mt-6 font-black text-[18vw] sm:text-[100px] md:text-[140px] lg:text-[160px] uppercase leading-[0.8] tracking-tighter">
-              <span
-                className={`block ${isLightMode ? "text-black" : "text-white"}`}
-              >
-                HACKX
-              </span>
-              <span
-                className={`block sm:ml-12 ${isLightMode ? "text-outline-light drop-shadow-[8px_8px_0_#c0ff00]" : "text-outline-dark drop-shadow-[8px_8px_0_#00f0ff]"}`}
-              >
-                <span
-                  className="text-[#ff00a0]"
-                  style={{ WebkitTextStroke: "0px" }}
-                >
-                  2.0
-                </span>
-              </span>
-            </h1>
-
-            <div
-              className={`relative z-10 lg:ml-8 mt-10 inline-block font-black uppercase tracking-widest text-sm sm:text-xl lg:text-2xl whitespace-nowrap border-[3px] px-4 py-2 sm:px-6 sm:py-3 ${isLightMode ? "border-black bg-white text-black shadow-[4px_4px_0_#000]" : "border-white bg-black text-white shadow-[4px_4px_0_#c0ff00]"}`}
-            >
-              — CODE FOR BHARAT 5.0 —
-            </div>
-
-            <p
-              className={`relative z-10 lg:ml-8 mt-8 max-w-2xl text-base sm:text-lg lg:text-xl font-bold leading-relaxed tracking-wide ${isLightMode ? "text-black/80" : "text-white/80"}`}
-            >
-              A national-level 24-hour student hackathon hosted at St. Francis
-              Institute of Technology, Mumbai. Join 10,000+ top developers,
-              designers, and innovators shaping the future of India's digital
-              infrastructure.
-            </p>
-
-            {/* Action Buttons */}
-            <div className="pointer-events-auto lg:ml-8 relative z-20 mt-12 flex flex-wrap items-center justify-center gap-6 sm:justify-start">
-              <Link
-                href="/register"
-                className="cursor-target group relative inline-flex items-center justify-center px-10 py-5 font-black uppercase tracking-widest text-white transition-all hover:-translate-y-1"
-              >
-                <div
-                  className={`absolute inset-0 border-[3px] transition-transform duration-300 group-hover:translate-x-2 group-hover:translate-y-2 ${isLightMode ? "bg-[#ff00a0] border-black" : "bg-[#c0ff00] border-white"}`}
-                />
-                <div
-                  className={`absolute inset-0 border-[3px] -z-10 translate-x-2 translate-y-2 ${isLightMode ? "border-black bg-black" : "border-white bg-white"}`}
-                />
-                <span
-                  className={`relative z-10 text-base sm:text-lg ${isLightMode ? "text-white" : "text-black group-hover:text-black"}`}
-                >
-                  Register Now
-                </span>
-              </Link>
-
-              <Link
-                href="/about"
-                className={`cursor-target group flex items-center gap-4 border-[3px] px-8 py-5 text-sm font-black uppercase tracking-widest transition-all hover:-translate-y-1 hover:bg-black hover:text-white ${isLightMode ? "border-black bg-white text-black shadow-[6px_6px_0_#000]" : "border-white bg-black text-white shadow-[6px_6px_0_#fff]"}`}
-              >
-                Learn More{" "}
-                <span className="text-xl leading-none group-hover:translate-x-1 transition-transform">
-                  →
-                </span>
-              </Link>
-            </div>
-          </div>
-
-          <div className="mt-40 text-center pb-20 relative z-20">
-            <h2
-              className={`font-black uppercase tracking-tighter text-5xl sm:text-7xl ${isLightMode ? "text-black" : "text-white"}`}
-            >
-              Event Highlights
-            </h2>
-            <p
-              className={`mt-6 text-sm sm:text-base font-bold uppercase tracking-widest ${isLightMode ? "text-[#ff00a0]" : "text-[#c0ff00]"}`}
-            >
-              Collaborate, code, and compete for amazing prizes.
-            </p>
-
-            <div className="pointer-events-auto mt-16 grid grid-cols-1 gap-8 sm:grid-cols-3">
-              <HighlightCard
-                title="Scale"
-                description="Connect with 10,000+ participants, builders, industry experts, and founders across India."
-                icon="🌐"
-                color="#c0ff00"
-                isLightMode={isLightMode}
-                delay={0}
-              />
-              <HighlightCard
-                title="Mentorship"
-                description="Gain insights directly from industry leaders and expert competitive selection panels."
-                icon="⚡"
-                color="#00f0ff"
-                isLightMode={isLightMode}
-                delay={0.2}
-              />
-              <HighlightCard
-                title="Prizes"
-                description="Compete for a massive ₹1.5 lakh prize pool, bounties, credits, and potential investments."
-                icon="🏆"
-                color="#ff00a0"
-                isLightMode={isLightMode}
-                delay={0.4}
-              />
-            </div>
-
-            {/* ABOUT SECTION  */}
-            <div className="mt-40 pt-10 pb-10 text-left w-full mx-auto relative z-20 pointer-events-auto cursor-target group">
-              <div
-                className={`p-10 sm:p-16 border-[3px] transition-transform duration-500 hover:-translate-y-2 hover:shadow-[12px_12px_0_#00f0ff] ${
-                  isLightMode
-                    ? "border-black bg-white shadow-[12px_12px_0_#000]"
-                    : "border-white/30 bg-[#111] shadow-[12px_12px_0_#fff]"
-                }`}
-              >
-                <h2
-                  className={`font-black uppercase tracking-tighter text-4xl sm:text-6xl ${
-                    isLightMode ? "text-black" : "text-white"
-                  }`}
-                >
-                  Driving Digital Bharat
-                </h2>
-                <div
-                  className={`mt-2 h-2 w-24 ${
-                    isLightMode ? "bg-[#ff00a0]" : "bg-[#c0ff00]"
-                  }`}
-                ></div>
-                <p
-                  className={`mt-8 text-lg sm:text-xl font-bold leading-relaxed tracking-wide ${
-                    isLightMode ? "text-black/80" : "text-white/80"
-                  }`}
-                >
-                  Over an intense 24-hour hacking experience, participants will
-                  work in teams to develop impactful solutions that matter. With
-                  a ₹1.5 lakh prize pool, mentorship from industry experts, and
-                  a rigorous competitive selection process leading to the top
-                  finalist teams, HackX 2.0 aims to become one of the largest
-                  student-led hackathons in all of Maharashtra. Our goal?
-                  Providing a platform for bold ideas, fearless innovation, and
-                  collaboration—empowering the next generation of builders to
-                  create technology that propels Digital Bharat forward.
-                </p>
-              </div>
-            </div>
-
-            {/* TRACKS/BIOMES SECTION */}
-            <div className="mt-40 relative z-20 pointer-events-auto">
-              <h2
-                className={`font-black uppercase tracking-tighter text-5xl sm:text-7xl ${isLightMode ? "text-black" : "text-white"}`}
-              >
-                The Domains
-              </h2>
-              <p
-                className={`mt-6 text-sm sm:text-base font-bold uppercase tracking-widest ${isLightMode ? "text-[#ff00a0]" : "text-[#c0ff00]"}`}
-              >
-                Explore critical pillars of the future and build your legacy.
-              </p>
-
-              <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6">
-                {[
-                  { name: "Cyber Defence", color: "#ff00a0", icon: "🛡️" },
-                  { name: "FinTech", color: "#c0ff00", icon: "💸" },
-                  { name: "Smart Cities", color: "#00f0ff", icon: "🏙️" },
-                  { name: "Future Mobility", color: "#ff00a0", icon: "🚀" },
-                ].map((track, i) => (
-                  <div
-                    key={i}
-                    className={`cursor-target group relative flex flex-col items-center justify-center p-8 transition-transform duration-500 hover:-translate-y-2 ${
-                      isLightMode
-                        ? "border-[3px] border-black bg-white shadow-[6px_6px_0_#000]"
-                        : "border-[3px] border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
-                    }`}
-                  >
-                    <div
-                      className="absolute inset-0 z-0 origin-bottom scale-y-0 transition-transform duration-300 ease-out group-hover:scale-y-100"
-                      style={{ backgroundColor: track.color }}
-                    />
-                    <div className="relative z-10 text-4xl mb-4 transform transition-transform group-hover:scale-125 group-hover:rotate-12">
-                      {track.icon}
-                    </div>
-                    <h3
-                      className={`relative z-10 text-lg font-black uppercase tracking-widest transition-colors duration-300 ${
-                        isLightMode ? "text-black" : "text-white"
-                      } group-hover:text-black`}
+                  <h1 className="font-black text-[clamp(4rem,16vw,200px)] leading-[0.85] tracking-tighter opacity-90 mix-blend-overlay">
+                    <span className={`text-[#ff00a0]`}>HACKX</span>
+                    <span
+                      className="text-transparent ml-4 sm:ml-8"
+                      style={{ WebkitTextStroke: "3px white" }}
                     >
-                      {track.name}
-                    </h3>
-                  </div>
-                ))}
-              </div>
-            </div>
+                      2.0
+                    </span>
+                  </h1>
+                </motion.div>
 
-            {/* TIMELINE SECTION */}
-            <div className="mt-40 text-left w-full mx-auto relative z-20 pointer-events-auto pb-10">
-              <h2
-                className={`font-black uppercase tracking-tighter text-5xl sm:text-7xl text-center ${isLightMode ? "text-black" : "text-white"}`}
-              >
-                Timeline
-              </h2>
-
-              <div className="mt-16 flex flex-col gap-8 max-w-4xl mx-auto">
-                {[
-                  {
-                    date: "March 2026",
-                    title: "Registrations Open",
-                    desc: "Form your team and secure your spot.",
-                  },
-                  {
-                    date: "18th Apr 2026",
-                    title: "Hacking Begins",
-                    desc: "Check-in, opening ceremony, and the 24-hr countdown starts.",
-                  },
-                  {
-                    date: "18th Apr 2026",
-                    title: "Midnight Mentorship",
-                    desc: "Expert round-tables and technical workshops.",
-                  },
-                  {
-                    date: "19th Apr 2026",
-                    title: "Hacking Concludes",
-                    desc: "Final submissions and code freeze.",
-                  },
-                  {
-                    date: "19th Apr 2026",
-                    title: "Closing Ceremony",
-                    desc: "Judging, top finalist pitches, and the ₹1.5 Lakh prize distribution.",
-                  },
-                ].map((item, idx) => (
-                  <div
-                    key={idx}
-                    className={`cursor-target flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6 border-[3px] transition-transform duration-300 hover:-translate-y-1 ${
-                      isLightMode
-                        ? "border-black bg-white shadow-[4px_4px_0_#000] hover:shadow-[8px_8px_0_#000]"
-                        : "border-white/30 bg-[#111] shadow-[4px_4px_0_#fff] hover:shadow-[8px_8px_0_#ff00a0]"
-                    }`}
+                {/* Floating Badges */}
+                <motion.div style={{ opacity: introOpacity }}>
+                  <FloatingBadge
+                    isLightMode={isLightMode}
+                    styleName="pointer-events-none absolute left-[2%] top-[45%] hidden md:flex"
+                    delay={0.5}
+                    floatRev
                   >
-                    <div
-                      className={`px-4 py-2 font-black uppercase tracking-wider whitespace-nowrap text-sm border-[3px] ${
-                        isLightMode
-                          ? "border-black bg-[#ff00a0] text-white"
-                          : "border-white bg-[#ff00a0] text-white"
-                      }`}
-                    >
-                      {item.date}
+                    <div className="flex flex-col gap-1 text-[10px] sm:text-[12px] font-mono font-bold leading-none">
+                      <span style={{ color: "#ff00a0" }}>import</span>
+                      <span style={{ color: isLightMode ? "#000" : "#fff" }}>
+                        {"{"} future {"}"}
+                      </span>
+                      <span style={{ color: isLightMode ? "#000" : "#fff" }}>
+                        from <span style={{ color: "#c0ff00" }}>'now';</span>
+                      </span>
                     </div>
-                    <div>
-                      <h4
-                        className={`text-xl font-black uppercase tracking-wide ${isLightMode ? "text-black" : "text-white"}`}
-                      >
-                        {item.title}
-                      </h4>
-                      <p
-                        className={`mt-1 font-bold ${isLightMode ? "text-black/60" : "text-white/60"}`}
-                      >
-                        {item.desc}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+                  </FloatingBadge>
 
-            {/* SPONSORS SECTION */}
-            <div className="mt-40 text-center w-full mx-auto relative z-20 pointer-events-auto">
-              <h2
-                className={`font-black uppercase tracking-tighter text-5xl sm:text-7xl ${isLightMode ? "text-black" : "text-white"}`}
-              >
-                Our Partners
-              </h2>
-              <p
-                className={`mt-6 text-sm sm:text-base font-bold uppercase tracking-widest ${isLightMode ? "text-[#ff00a0]" : "text-[#c0ff00]"}`}
-              >
-                Supported by the best in the industry.
-              </p>
-
-              <div className="mt-16 flex flex-wrap justify-center gap-8">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className={`cursor-target w-40 h-24 sm:w-56 sm:h-32 flex items-center justify-center border-[3px] transition-transform hover:scale-105 duration-300 ${
-                      isLightMode
-                        ? "border-black bg-white shadow-[6px_6px_0_#000]"
-                        : "border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
-                    }`}
+                  <FloatingBadge
+                    isLightMode={isLightMode}
+                    styleName="pointer-events-none absolute right-[2%] top-[35%] hidden md:flex"
+                    delay={1.2}
                   >
                     <span
-                      className={`font-black text-xl tracking-widest opacity-50 ${isLightMode ? "text-black" : "text-white"}`}
+                      className="text-2xl sm:text-3xl font-black text-white"
+                      style={{ WebkitTextStroke: "2px white" }}
                     >
-                      SPONSOR {i}
+                      {"< />"}
                     </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+                  </FloatingBadge>
 
-            {/* FAQ SECTION */}
-            <div className="mt-40 text-left w-full mx-auto max-w-4xl relative z-20 pointer-events-auto pb-10">
-              <h2
-                className={`font-black uppercase tracking-tighter text-5xl sm:text-7xl text-center mb-16 ${isLightMode ? "text-black" : "text-white"}`}
-              >
-                FAQ
-              </h2>
-
-              <div className="flex flex-col gap-6">
-                {[
-                  {
-                    q: "What is HackX 2.0?",
-                    a: "HackX 2.0 is a 24-hour national-level hackathon aimed at solving real-world challenges to shape the future of Digital Bharat. It brings together over 10,000 developers, designers, and innovators.",
-                  },
-                  {
-                    q: "Who can participate?",
-                    a: "Any student enrolled in a recognized university or college can participate. Whether you are a first-year student or a final-year expert, you are welcome to build with us!",
-                  },
-                  {
-                    q: "What is the team size?",
-                    a: "Teams can have 2 to 4 members. You can either form a team beforehand or find teammates during the registration phase.",
-                  },
-                  {
-                    q: "Is there a registration fee?",
-                    a: "Details regarding the registration fee and process are updated on the registration portal. Check out the portal for the most recent timeline and fees!",
-                  },
-                  {
-                    q: "Will the problem statements be given in advance?",
-                    a: "The broad domains (Cyber Defence, FinTech, Smart Cities, Future Mobility) are known, but the exact problem statements are revealed during the opening ceremony to maintain equal footing.",
-                  },
-                ].map((faq, i) => (
-                  <details
-                    key={i}
-                    className={`cursor-target group border-[3px] [&_summary::-webkit-details-marker]:hidden ${
-                      isLightMode
-                        ? "border-black bg-white shadow-[4px_4px_0_#000]"
-                        : "border-white/30 bg-[#111] shadow-[4px_4px_0_#fff]"
-                    }`}
+                  <FloatingBadge
+                    isLightMode={isLightMode}
+                    styleName="pointer-events-none absolute left-[10%] top-[10%] hidden lg:flex rounded-full"
+                    delay={0.8}
                   >
-                    <summary
-                      className={`flex cursor-pointer items-center justify-between p-6 font-black uppercase tracking-wide text-lg sm:text-xl focus:outline-none ${isLightMode ? "text-black" : "text-white"}`}
-                    >
-                      {faq.q}
-                      <span
-                        className={`ml-4 text-2xl transition-transform duration-300 group-open:rotate-45 ${isLightMode ? "text-[#ff00a0]" : "text-[#c0ff00]"}`}
-                      >
-                        +
-                      </span>
-                    </summary>
+                    <span className="text-xl sm:text-2xl drop-shadow-[2px_2px_0_#ff00a0]">
+                      ✨
+                    </span>
+                  </FloatingBadge>
+                </motion.div>
+
+                {/* NARRATIVE PHASE 1: BRAND INTRO */}
+                <motion.div
+                  style={{ opacity: introOpacity, y: introY }}
+                  className="flex-1 flex flex-col justify-between"
+                >
+                  <div className="relative z-10 w-full flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 pt-36">
                     <div
-                      className={`px-6 pb-6 font-bold leading-relaxed border-t-[3px] mt-2 pt-4 ${isLightMode ? "text-black/80 border-black/10" : "text-white/80 border-white/10"}`}
+                      className={`inline-block border-[3px] px-6 py-2 text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] transition-transform hover:scale-105 ${isLightMode ? "border-black bg-[#ff00a0] text-white shadow-[4px_4px_0_#000]" : "border-white bg-[#ff00a0] text-white shadow-[4px_4px_0_#fff]"}`}
                     >
-                      {faq.a}
+                      CSI & GDG SFIT PRESENTS
                     </div>
-                  </details>
-                ))}
+                  </div>
+
+                  <div className="relative z-10 w-full flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 pt-60">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 bg-black text-white px-4 py-2 border-[3px] border-white/50 shadow-[4px_4px_0_#c0ff00]">
+                        <div className="h-2 w-2 rounded-full bg-[#00f0ff] animate-pulse"></div>
+                        <span className="text-[10px] font-black tracking-[0.2em]">
+                          STATUS: LIVE
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative z-10 w-full flex flex-col items-center lg:flex-row lg:items-end justify-between text-center lg:text-left mt-auto pb-8">
+                    <div className="flex flex-col items-center lg:items-start gap-4 sm:gap-6 max-w-xl">
+                      <div
+                        className={`inline-block w-max font-black uppercase tracking-widest text-xs sm:text-sm whitespace-nowrap border-[3px] px-4 py-2 ${isLightMode ? "border-black bg-white text-black shadow-[4px_4px_0_#000]" : "border-white bg-black text-white shadow-[4px_4px_0_#c0ff00]"}`}
+                      >
+                        — CODE FOR BHARAT 5.0 —
+                      </div>
+                      <p
+                        className={`text-sm sm:text-base font-bold leading-relaxed tracking-wide ${isLightMode ? "text-black p-4 sm:p-5 border-[3px] border-black bg-white/70 backdrop-blur-md shadow-[4px_4px_0_#000]" : "text-white p-4 sm:p-5 border-[3px] border-white/30 bg-black/50 backdrop-blur-md shadow-[4px_4px_0_#fff]"}`}
+                      >
+                        A national-level 24-hour student hackathon hosted at St.
+                        Francis Institute of Technology, Mumbai. Join 10,000+
+                        top developers, designers, and innovators shaping the
+                        future of India's digital infrastructure.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 pointer-events-auto">
+                      <Link
+                        href="https://unstop.com/" // Placeholder: User should provide the actual event link
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="cursor-target group relative inline-flex items-center justify-center gap-3 px-8 py-4 sm:px-10 sm:py-5 font-black uppercase tracking-widest text-white transition-all hover:-translate-y-1 w-full sm:w-auto overflow-hidden border-[3px] border-black bg-[#1c4980] shadow-[8px_8px_0_#000]"
+                      >
+                        <div className="absolute inset-0 z-0 bg-[#2c69d1] opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <svg
+                          viewBox="0 0 200 200"
+                          fill="currentColor"
+                          className="relative z-10 h-6 w-6"
+                        >
+                          <path d="M100,1C45.5,1,1,45.5,1,100c0,54.5,44.5,99,99,99c54.5,0,99-44.5,99-99C199,45.5,154.5,1,100,1z M90.1,140.1 l-20.6,0v-9.3c-5.9,9-13.1,12.8-23.9,12.8c-17.2,0-26.8-9.9-26.8-27.5V60.8h20.7v51c0,9.6,4.4,14.2,13.2,14.2 c10.1,0,16.6-6.2,16.6-15.6V60.7h20.7V140.1z M160.5,140.1v-49c0-9.4-4.4-14.2-13.2-14.2c-10.1,0-16.6,6.2-16.6,15.6v47.6h-20.7 V60.7l20.6,0v0.1v11.4c5.9-9,13.1-12.8,23.9-12.8c17.2,0,26.8,9.9,26.8,27.5v53.2H160.5z" />
+                        </svg>
+                        <span className="relative z-10">
+                          Register on Unstop
+                        </span>
+                      </Link>
+                      <Link
+                        href="#about"
+                        className="cursor-target group relative inline-flex items-center justify-center px-6 py-4 sm:px-8 sm:py-5 font-black uppercase tracking-widest transition-all hover:-translate-y-1 w-full sm:w-auto"
+                      >
+                        <div
+                          className={`absolute inset-0 border-[3px] transition-transform duration-300 group-hover:translate-x-2 group-hover:translate-y-2 ${isLightMode ? "bg-white border-black" : "bg-black border-white"}`}
+                        />
+                        <div
+                          className={`absolute inset-0 border-[3px] -z-10 translate-x-2 translate-y-2 ${isLightMode ? "border-black bg-[#00f0ff]" : "border-white bg-[#ff00a0]"}`}
+                        />
+                        <span
+                          className={`relative z-10 mix-blend-normal! flex items-center justify-center gap-2 ${isLightMode ? "text-black" : "text-white"}`}
+                        >
+                          LEARN MORE{" "}
+                          <span className="group-hover:translate-y-1 transition-transform">
+                            ↓
+                          </span>
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* NARRATIVE PHASE 2: MISSION STATEMENT */}
+                <motion.div
+                  style={{ opacity: missionOpacity, y: missionY }}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                >
+                  <div className="max-w-4xl text-center px-6">
+                    <h2
+                      className={`font-black uppercase tracking-tighter text-4xl sm:text-7xl mb-8 drop-shadow-[0_8px_8px_rgba(0,0,0,0.8)] ${isLightMode ? "text-white" : "text-white"}`}
+                    >
+                      Driving Digital{" "}
+                      <span className="text-[#ff00a0] drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]">
+                        Bharat
+                      </span>
+                    </h2>
+                    <div
+                      className={`mx-auto h-2 w-32 mb-12 ${isLightMode ? "bg-black" : "bg-[#c0ff00]"}`}
+                    />
+                    <p
+                      className={`text-xl sm:text-3xl font-black leading-tight tracking-tight uppercase p-6 border-[3px] backdrop-blur-md ${isLightMode ? "text-white border-white/30 bg-black/40 shadow-[8px_8px_0_#000]" : "text-white border-white/20 bg-black/60 shadow-[8px_8px_0_#fff]"}`}
+                    >
+                      Over an intense 24-hour experience, we build the bridges
+                      between{" "}
+                      <span className="underline decoration-[#00f0ff] decoration-4 underline-offset-4">
+                        bold ideas
+                      </span>{" "}
+                      and{" "}
+                      <span className="underline decoration-[#ff00a0] decoration-4 underline-offset-4">
+                        impactful reality.
+                      </span>
+                    </p>
+                  </div>
+                </motion.div>
+
+                {/* NARRATIVE PHASE 3: THE LOOT */}
+                <motion.div
+                  style={{ opacity: lootOpacity, y: lootY }}
+                  className="absolute inset-0 flex flex-col items-center justify-center p-6 pointer-events-none"
+                >
+                  <div className="text-center w-full max-w-5xl pointer-events-auto">
+                    <h2
+                      className={`font-black uppercase tracking-tighter text-5xl sm:text-7xl mb-4 ${isLightMode ? "text-black" : "text-white"}`}
+                    >
+                      The Loot
+                    </h2>
+                    <p
+                      className={`mb-12 text-sm sm:text-base font-bold uppercase tracking-widest ${isLightMode ? "text-[#00f0ff]" : "text-[#00f0ff]"}`}
+                    >
+                      ₹1.5 LAKH PRIZE POOL
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
+                      {[
+                        {
+                          place: "2nd Runner Up",
+                          amount: "₹25,000",
+                          color: "#c0ff00",
+                        },
+                        {
+                          place: "Winner",
+                          amount: "₹75,000",
+                          color: "#ff00a0",
+                        },
+                        {
+                          place: "1st Runner Up",
+                          amount: "₹50,000",
+                          color: "#00f0ff",
+                        },
+                      ].map((prize, idx) => (
+                        <div
+                          key={idx}
+                          className={`cursor-target p-8 sm:p-10 flex flex-col items-center justify-center border-[3px] transition-transform hover:-translate-y-2 duration-300 ${
+                            idx === 1 ? "sm:-mt-4 scale-105" : ""
+                          } ${
+                            isLightMode
+                              ? "border-black bg-white shadow-[8px_8px_0_#000]"
+                              : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"
+                          }`}
+                        >
+                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-2">
+                            {prize.place}
+                          </span>
+                          <span
+                            className="text-3xl sm:text-5xl font-black tracking-tighter"
+                            style={{ color: prize.color }}
+                          >
+                            {prize.amount}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* NARRATIVE PHASE 4: THE DOMAINS */}
+                <motion.div
+                  style={{ opacity: domainsPhaseOpacity, y: domainsPhaseY }}
+                  className="absolute inset-0 flex flex-col items-center justify-center p-6 pointer-events-none"
+                >
+                  <div className="w-full max-w-6xl pointer-events-auto">
+                    <h2
+                      className={`font-black uppercase tracking-tighter text-5xl sm:text-7xl mb-4 text-center ${isLightMode ? "text-black" : "text-white"}`}
+                    >
+                      The Domains
+                    </h2>
+                    <p
+                      className={`mb-12 text-sm sm:text-base font-bold uppercase tracking-widest text-center ${isLightMode ? "text-black/60" : "text-white/60"}`}
+                    >
+                      Choose a challenge or pitch your own initiative.
+                    </p>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                      {[
+                        {
+                          name: "Cyber Defence",
+                          color: "#ff00a0",
+                          icon: <ShieldIcon className="h-full w-full" />,
+                        },
+                        {
+                          name: "FinTech",
+                          color: "#c0ff00",
+                          icon: <FinTechIcon className="h-full w-full" />,
+                        },
+                        {
+                          name: "Smart Cities",
+                          color: "#00f0ff",
+                          icon: <CityIcon className="h-full w-full" />,
+                        },
+                        {
+                          name: "Future Mobility",
+                          color: "#ff00a0",
+                          icon: <MobilityIcon className="h-full w-full" />,
+                        },
+                      ].map((track, i) => (
+                        <div
+                          key={i}
+                          className={`cursor-target group relative flex flex-col items-center justify-center p-6 sm:p-8 transition-transform duration-500 hover:-translate-y-2 ${
+                            isLightMode
+                              ? "border-[3px] border-black bg-white shadow-[6px_6px_0_#000]"
+                              : "border-[3px] border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
+                          }`}
+                        >
+                          <div
+                            className="absolute inset-0 z-0 origin-bottom scale-y-0 transition-transform duration-300 ease-out group-hover:scale-y-100"
+                            style={{ backgroundColor: track.color }}
+                          />
+                          <div
+                            className={`relative z-10 h-10 w-10 mb-4 transform transition-transform group-hover:scale-110 group-hover:rotate-12 ${isLightMode ? "text-black" : "text-white"} group-hover:text-black`}
+                          >
+                            {track.icon}
+                          </div>
+                          <h3
+                            className={`relative z-10 text-sm sm:text-base font-black uppercase tracking-widest text-center transition-colors duration-300 ${
+                              isLightMode ? "text-black" : "text-white"
+                            } group-hover:text-black`}
+                          >
+                            {track.name}
+                          </h3>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+                <motion.div
+                  style={{ opacity: pillarsOpacity, y: pillarsY }}
+                  className="absolute inset-0 flex flex-col justify-between pt-32 pb-16 px-6 pointer-events-none"
+                >
+                  <div className="text-center mb-auto">
+                    <h2
+                      className={`font-black uppercase tracking-tighter text-5xl sm:text-7xl ${isLightMode ? "text-black" : "text-white"}`}
+                    >
+                      Event Highlights
+                    </h2>
+                    <p
+                      className={`mt-4 text-sm sm:text-base font-bold uppercase tracking-widest ${isLightMode ? "text-[#ff00a0]" : "text-[#c0ff00]"}`}
+                    >
+                      Scale • Mentorship • Prizes
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-auto pointer-events-auto max-w-7xl mx-auto w-full px-4">
+                    <HighlightCard
+                      title="Scale"
+                      description="Connect with 10,000+ participants and builders across India."
+                      icon={<GlobeIcon className="h-2/3 w-2/3" />}
+                      color="#c0ff00"
+                      isLightMode={isLightMode}
+                      delay={0}
+                    />
+                    <HighlightCard
+                      title="Mentorship"
+                      description="Gain insights directly from industry leaders and experts."
+                      icon={<ZapIcon className="h-2/3 w-2/3" />}
+                      color="#00f0ff"
+                      isLightMode={isLightMode}
+                      delay={0.2}
+                    />
+                    <HighlightCard
+                      title="Prizes"
+                      description="Compete for a massive ₹1.5 lakh prize pool and bounties."
+                      icon={<TrophyIcon className="h-2/3 w-2/3" />}
+                      color="#ff00a0"
+                      isLightMode={isLightMode}
+                      delay={0.4}
+                    />
+                  </div>
+                </motion.div>
               </div>
             </div>
+          </div>
 
-            {/* Countdown */}
-            <div
-              className={`pointer-events-auto relative px-8 py-10 sm:py-14 text-center mx-auto max-w-4xl mt-32 border-[3px] ${isLightMode ? "border-black bg-[#c0ff00] shadow-[12px_12px_0_#000]" : "border-white/30 bg-[#c0ff00] shadow-[12px_12px_0_#fff]"}`}
-            >
-              <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-black">
-                Hacking Begins In
-              </h2>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full mt-20">
+            <div className="pb-10 relative z-20">
+              {/* RESOURCES & TEAM SECTION */}
+              <div className="mt-40 grid grid-cols-1 lg:grid-cols-2 gap-12 w-full relative z-20 pointer-events-auto">
+                <div
+                  className={`p-8 border-[3px] ${isLightMode ? "border-black bg-white shadow-[8px_8px_0_#000]" : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"}`}
+                >
+                  <h3
+                    className={`text-3xl font-black uppercase tracking-tighter mb-8 ${isLightMode ? "text-black" : "text-white"}`}
+                  >
+                    Hacker Toolkit
+                  </h3>
+                  <div className="flex flex-col gap-4">
+                    <a
+                      href="#"
+                      className={`cursor-target flex items-center justify-between p-4 border-[3px] font-black uppercase tracking-wider transition-colors ${isLightMode ? "border-black hover:bg-[#c0ff00]" : "border-white/30 hover:bg-[#c0ff00] hover:text-black hover:border-[#c0ff00] text-white"}`}
+                    >
+                      <span>Rules & Regulations</span>
+                      <span>→</span>
+                    </a>
+                    <a
+                      href="#"
+                      className={`cursor-target flex items-center justify-between p-4 border-[3px] font-black uppercase tracking-wider transition-colors ${isLightMode ? "border-black hover:bg-[#00f0ff]" : "border-white/30 hover:bg-[#00f0ff] hover:text-black hover:border-[#00f0ff] text-white"}`}
+                    >
+                      <span>PPT Template</span>
+                      <span>→</span>
+                    </a>
+                    <a
+                      href="#"
+                      className={`cursor-target flex items-center justify-between p-4 border-[3px] font-black uppercase tracking-wider transition-colors ${isLightMode ? "border-black hover:bg-[#ff00a0] hover:text-white" : "border-white/30 hover:bg-[#ff00a0] text-white"}`}
+                    >
+                      <span>API Guidelines</span>
+                      <span>→</span>
+                    </a>
+                  </div>
+                </div>
 
-              <div className="mt-10 flex flex-wrap items-center justify-center gap-6 sm:gap-8 cursor-target">
-                <CountdownItem value="32" label="Days" color="#ff00a0" />
-                <div className="text-4xl font-black text-black hidden sm:block">
-                  :
+                <div
+                  className={`p-8 border-[3px] ${isLightMode ? "border-black bg-[#ff00a0] text-white shadow-[8px_8px_0_#000]" : "border-white bg-[#ff00a0] text-white shadow-[8px_8px_0_#fff]"}`}
+                >
+                  <h3 className="text-3xl font-black uppercase tracking-tighter mb-4">
+                    The Organizers
+                  </h3>
+                  <p className="font-bold mb-8 opacity-90">
+                    Powered by CSI SFIT and GDG SFIT.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      "Ananya",
+                      "Brijesh",
+                      "Shobhit",
+                      "Harsh",
+                      "Rushit",
+                      "Pallavi",
+                    ].map((name, i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col border-b-[3px] border-black/20 pb-2"
+                      >
+                        <span className="font-black uppercase tracking-wider">
+                          {name}
+                        </span>
+                        <span className="text-xs font-bold opacity-75">
+                          Core Member
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <CountdownItem value="10" label="Hours" color="#00f0ff" />
-                <div className="text-4xl font-black text-black hidden sm:block">
-                  :
+              </div>
+
+              {/* Countdown */}
+              <div
+                className={`pointer-events-auto relative px-8 py-10 sm:py-14 text-center mx-auto max-w-4xl mt-32 border-[3px] ${isLightMode ? "border-black bg-[#c0ff00] shadow-[12px_12px_0_#000]" : "border-white/30 bg-[#c0ff00] shadow-[12px_12px_0_#fff]"}`}
+              >
+                <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-black">
+                  Hacking Begins In
+                </h2>
+
+                <div className="mt-10 flex flex-wrap items-center justify-center gap-6 sm:gap-8 cursor-target">
+                  <CountdownItem value="32" label="Days" color="#ff00a0" />
+                  <div className="text-4xl font-black text-black hidden sm:block">
+                    :
+                  </div>
+                  <CountdownItem value="10" label="Hours" color="#00f0ff" />
+                  <div className="text-4xl font-black text-black hidden sm:block">
+                    :
+                  </div>
+                  <CountdownItem value="57" label="Minutes" color="#ff00a0" />
                 </div>
-                <CountdownItem value="57" label="Minutes" color="#ff00a0" />
               </div>
             </div>
           </div>

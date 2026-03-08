@@ -119,6 +119,7 @@ type WaveTilesProps = {
   onModeChange?: (isLightMode: boolean) => void;
   trackPointerGlobally?: boolean;
   optimizeForPerformance?: boolean;
+  forceTheme?: boolean;
 };
 
 export function WaveTiles({
@@ -130,6 +131,7 @@ export function WaveTiles({
   onModeChange,
   trackPointerGlobally = false,
   optimizeForPerformance = false,
+  forceTheme,
 }: WaveTilesProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [contentOverlays, setContentOverlays] = useState<ContentOverlay[]>([]);
@@ -153,7 +155,9 @@ export function WaveTiles({
       ) => void)
     | null
   >(null);
+  patchCubesRef.current = null;
   const onModeChangeRef = useRef(onModeChange);
+  const forceToggleRef = useRef<(() => void) | null>(null);
 
   latestCubeLayoutRef.current = cubeLayout;
   onModeChangeRef.current = onModeChange;
@@ -2050,6 +2054,10 @@ export function WaveTiles({
       onModeChangeRef.current?.(isLightMode);
       bgTarget = isLightMode ? 215 : 40;
 
+      triggerRipple(triggerCube);
+    }
+
+    function triggerRipple(triggerCube: Cube) {
       const now = performance.now();
       const triggerRow = triggerCube.row + triggerCube.rowSpan / 2;
       const triggerCol = triggerCube.col + triggerCube.colSpan / 2;
@@ -2072,6 +2080,29 @@ export function WaveTiles({
         cube.highlightUntil = cube.animationStart + 320;
       }
     }
+
+    forceToggleRef.current = () => {
+      let triggerCube: Cube | null = null;
+      let maxRight = -1;
+
+      for (const cube of cubes) {
+        if (cube.row === 0) {
+          const rightEdge = cube.col + cube.colSpan;
+          if (rightEdge > maxRight) {
+            maxRight = rightEdge;
+            triggerCube = cube;
+          }
+        }
+      }
+
+      if (!triggerCube) return;
+
+      isLightMode = !isLightMode;
+      onModeChangeRef.current?.(isLightMode);
+      bgTarget = isLightMode ? 215 : 40;
+      triggerRipple(triggerCube);
+      markInteraction();
+    };
 
     function handlePointerLeave() {
       cursorX = viewportWidth / 2;
@@ -2226,6 +2257,12 @@ export function WaveTiles({
     if (!patchLayout || !patchCubesRef.current) return;
     patchCubesRef.current(patchLayout);
   }, [patchLayout]);
+
+  useEffect(() => {
+    if (forceTheme !== undefined && forceToggleRef.current) {
+      forceToggleRef.current();
+    }
+  }, [forceTheme]);
 
   return (
     <div
