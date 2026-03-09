@@ -4,8 +4,9 @@ import { WaveTiles } from "@/ui/components/basic/wave-tiles";
 import ScrollSequence from "@/ui/components/scroll-sequence";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 import { Nvbar } from "./components/nvbar";
+import { useTheme } from "@/app/providers/theme-provider";
 
 const STYLES = `
   @keyframes float {
@@ -347,10 +348,7 @@ const ThemeToggle = ({
 };
 
 export default function Home() {
-  const [isLightMode, setIsLightMode] = useState(false);
-  const [forceTheme, setForceTheme] = useState(false);
-  const [isModeAnimating, setIsModeAnimating] = useState(false);
-  const hasMountedRef = useRef(false);
+  const { isLightMode } = useTheme();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({
@@ -410,8 +408,6 @@ export default function Home() {
   const navbarOpacity = useTransform(scrollYProgress, [0.97, 0.99], [0, 1]);
   const navbarX = useTransform(scrollYProgress, [0.97, 0.99], [60, 0]);
 
-  // The original useEffect for isModeAnimating is removed as per instructions.
-
   return (
     <div
       className={`relative min-h-screen font-sans selection:bg-[#ff00a0] selection:text-white ${isLightMode ? "bg-[#f5f5f5]" : "bg-black"}`}
@@ -429,9 +425,7 @@ export default function Home() {
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
         <WaveTiles
           className={isLightMode ? "opacity-40" : "opacity-30"}
-          onModeChange={setIsLightMode}
-          // optimizeForPerformance={true}
-          // trackPointerGlobally={true}
+          onModeChange={() => {}}
         />
       </div>
 
