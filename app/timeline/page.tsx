@@ -50,11 +50,10 @@ const ThemeToggle = ({
   return (
     <button
       onClick={toggle}
-      className={`pointer-events-auto group relative flex h-14 w-14 items-center justify-center border-[3px] transition-all duration-300 hover:scale-105 active:scale-95 ${
-        isLightMode
-          ? "border-black bg-white shadow-[4px_4px_0_#000]"
-          : "border-white bg-[#111] shadow-[4px_4px_0_#fff]"
-      }`}
+      className={`pointer-events-auto group relative flex h-14 w-14 items-center justify-center border-[3px] transition-all duration-300 hover:scale-105 active:scale-95 ${isLightMode
+        ? "border-black bg-white shadow-[4px_4px_0_#000]"
+        : "border-white bg-[#111] shadow-[4px_4px_0_#fff]"
+        }`}
       aria-label="Toggle theme"
     >
       <div
@@ -129,65 +128,42 @@ export default function TimelinePage() {
               Timeline
             </h2>
 
-            <div className="mt-16 flex flex-col gap-8 max-w-4xl mx-auto">
-              {[
-                {
-                  date: "March 2026",
-                  title: "Registrations Open",
-                  desc: "Form your team and secure your spot.",
-                },
-                {
-                  date: "18th Apr 2026",
-                  title: "Hacking Begins",
-                  desc: "Check-in, opening ceremony, and the 24-hr countdown starts.",
-                },
-                {
-                  date: "18th Apr 2026",
-                  title: "Midnight Mentorship",
-                  desc: "Expert round-tables and technical workshops.",
-                },
-                {
-                  date: "19th Apr 2026",
-                  title: "Hacking Concludes",
-                  desc: "Final submissions and code freeze.",
-                },
-                {
-                  date: "19th Apr 2026",
-                  title: "Closing Ceremony",
-                  desc: "Judging, top finalist pitches, and the ₹1.5 Lakh prize distribution.",
-                },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  className={`cursor-target flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6 border-[3px] transition-transform duration-300 hover:-translate-y-1 ${
-                    isLightMode
-                      ? "border-black bg-white shadow-[4px_4px_0_#000] hover:shadow-[8px_8px_0_#000]"
-                      : "border-white/30 bg-[#111] shadow-[4px_4px_0_#fff] hover:shadow-[8px_8px_0_#ff00a0]"
-                  }`}
-                >
-                  <div
-                    className={`px-4 py-2 font-black uppercase tracking-wider whitespace-nowrap text-sm border-[3px] ${
-                      isLightMode
-                        ? "border-black bg-[#ff00a0] text-white"
-                        : "border-white bg-[#ff00a0] text-white"
-                    }`}
-                  >
-                    {item.date}
-                  </div>
-                  <div>
-                    <h4
-                      className={`text-xl font-black uppercase tracking-wide ${isLightMode ? "text-black" : "text-white"}`}
-                    >
-                      {item.title}
-                    </h4>
-                    <p
-                      className={`mt-1 font-bold ${isLightMode ? "text-black/60" : "text-white/60"}`}
-                    >
-                      {item.desc}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            <div className="mt-16 flex flex-col gap-8 max-w-5xl mx-auto">
+              <div className="relative flex w-full items-center justify-center p-2 sm:p-4 perspective-1000">
+                <img
+                  src="/timeline_images/day1_title.webp"
+                  alt="Day 1 Title"
+                  className="max-w-md w-full object-contain pointer-events-none drop-shadow-md mx-auto"
+                  draggable={false}
+                />
+              </div>
+
+              <div className={`cursor-target group relative flex w-full items-center justify-center p-2 sm:p-4 transition-colors duration-300 hover:bg-purple-600 border-[3px] ${isLightMode ? "border-black bg-white shadow-[4px_4px_0_#000]" : "border-white/30 bg-[#111] shadow-[4px_4px_0_#fff]"}`}>
+                <img
+                  src="/timeline_images/day1schedule.webp"
+                  alt="Day 1 Schedule"
+                  className="w-full object-contain pointer-events-none drop-shadow-md"
+                  draggable={false}
+                />
+              </div>
+
+              <div className="relative flex w-full items-center justify-center p-2 sm:p-4 perspective-1000">
+                <img
+                  src="/timeline_images/day2_title.webp"
+                  alt="Day 2 Title"
+                  className="max-w-md w-full object-contain pointer-events-none drop-shadow-md mx-auto"
+                  draggable={false}
+                />
+              </div>
+
+              <div className={`cursor-target group relative flex w-full items-center justify-center p-2 sm:p-4 transition-colors duration-300 hover:bg-purple-600 border-[3px] ${isLightMode ? "border-black bg-white shadow-[4px_4px_0_#000]" : "border-white/30 bg-[#111] shadow-[4px_4px_0_#fff]"}`}>
+                <img
+                  src="/timeline_images/day2schedule.webp"
+                  alt="Day 2 Schedule"
+                  className="w-full object-contain pointer-events-none drop-shadow-md"
+                  draggable={false}
+                />
+              </div>
             </div>
           </div>
         </main>
