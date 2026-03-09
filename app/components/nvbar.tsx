@@ -45,22 +45,23 @@ export function Nvbar() {
     setIsMobileOpen(false);
   }, [pathname]);
 
-  const navButtonClassName = `flex h-14 w-14 items-center justify-center border-2 text-xs font-black uppercase tracking-[0.22em] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 sm:h-15 sm:w-15 ${
+  // Get current page accent color and short label for the NAV button
+  const currentNav = navCubes.find((item) => isActivePath(pathname, item.href));
+  const currentAccent = currentNav?.accent ?? "#ffd23f";
+  const currentShortLabel = currentNav?.shortLabel ?? "NAV";
+
+  const navButtonClassName = `flex h-14 w-14 items-center justify-center border-[3px] text-xs font-black uppercase tracking-[0.22em] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 sm:h-15 sm:w-15 ${
     isLightMode
       ? "border-black bg-white text-black shadow-[6px_6px_0_#000]"
-      : "border-white/20 bg-black/45 text-white shadow-[6px_6px_0_rgba(0,0,0,0.35)] hover:border-white/45 hover:bg-black/65"
+      : "border-white/50 bg-black/80 text-white shadow-[6px_6px_0_rgba(255,255,255,0.15)] hover:border-white/70 hover:bg-black/90"
   }`;
 
-  const mobileTriggerClassName = `pointer-events-auto flex h-14 w-14 items-center justify-center border-2 text-[10px] font-black uppercase tracking-[0.22em] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 sm:hidden ${
-    isLightMode
-      ? "border-black bg-white text-black shadow-[6px_6px_0_#000]"
-      : "border-white/20 bg-black/65 text-white shadow-[6px_6px_0_rgba(0,0,0,0.35)] hover:border-white/45"
-  }`;
+  const mobileTriggerClassName = `nav-trigger-btn pointer-events-auto flex h-14 w-14 items-center justify-center text-[16px] font-black uppercase tracking-[0.22em] transition-all duration-200 sm:hidden`;
 
-  const themeButtonClassName = `flex h-14 w-14 sm:h-15 sm:w-15 items-center justify-center border-2 text-xs font-black uppercase tracking-[0.22em] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 ${
+  const themeButtonClassName = `flex h-14 w-14 sm:h-15 sm:w-15 items-center justify-center border-[3px] text-xs font-black uppercase tracking-[0.22em] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 ${
     isLightMode
       ? "border-black bg-white text-black shadow-[6px_6px_0_#000] hover:bg-slate-100"
-      : "border-white/20 bg-black/45 text-white shadow-[6px_6px_0_rgba(0,0,0,0.35)] hover:border-white/45 hover:bg-black/65"
+      : "border-white/50 bg-black/80 text-white shadow-[6px_6px_0_rgba(255,255,255,0.15)] hover:border-white/70 hover:bg-black/90"
   }`;
 
   return (
@@ -144,8 +145,14 @@ export function Nvbar() {
           aria-label="Toggle navigation"
           aria-expanded={isMobileOpen}
           className={mobileTriggerClassName}
+          style={
+            {
+              "--nav-accent": currentAccent,
+              "--nav-accent-glow": `${currentAccent}b3`,
+            } as React.CSSProperties
+          }
         >
-          {isMobileOpen ? "X" : "NAV"}
+          {isMobileOpen ? "X" : currentShortLabel}
         </button>
       </div>
 
