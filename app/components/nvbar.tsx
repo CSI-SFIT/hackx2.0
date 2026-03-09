@@ -74,7 +74,7 @@ export function Nvbar() {
             }`}
           aria-hidden={!isMobileOpen}
         >
-          <div className="group relative flex items-center justify-end">
+          <div className={`group relative flex items-center justify-end ${isMobileOpen ? 'pointer-events-auto' : 'pointer-events-none'}`}>
             <div
               className="absolute right-full mr-3 whitespace-nowrap border-2 px-3 py-2 text-[10px] font-black uppercase tracking-[0.24em] text-black opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 translate-x-2"
               style={{
@@ -100,7 +100,7 @@ export function Nvbar() {
             </button>
           </div>
 
-          <nav className="pointer-events-auto flex flex-col items-end gap-3" aria-label="Primary">
+          <nav className={`flex flex-col items-end gap-3 ${isMobileOpen ? 'pointer-events-auto' : 'pointer-events-none'}`} aria-label="Primary">
             {navCubes.map((item) => {
               const isActive = isActivePath(pathname, item.href);
 
