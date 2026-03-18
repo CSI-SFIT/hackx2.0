@@ -467,7 +467,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="relative z-10 flex min-h-screen px-10 flex-col">
+      <div className="relative z-10 flex min-h-screen px-4 sm:px-6 lg:px-10 flex-col">
         {/* Main Content */}
         <main className="relative z-20 flex w-full flex-1 flex-col">
           {/* Height matched to the length of the sticky ScrollSequence to keep layout linear */}
@@ -526,7 +526,7 @@ export default function Home() {
                   }}
                   className="absolute top-[40%] sm:top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center flex flex-col items-center justify-center z-40"
                 >
-                  <div className="flex font-black text-[clamp(5rem,10vw,200px)] sm:text-[clamp(4rem,16vw,200px)] leading-tight tracking-tighter mix-blend-overlay">
+                  <div className="flex font-black text-[clamp(3.5rem,10vw,200px)] sm:text-[clamp(4rem,16vw,200px)] leading-tight tracking-tighter mix-blend-overlay">
                     <h1 className={`text-[#ff00a0] cursor-target`}>HACKX</h1>
                     <h1
                       className="text-transparent ml-2 sm:ml-8 cursor-target"
@@ -709,7 +709,7 @@ export default function Home() {
                     y: lootY,
                     pointerEvents: lootPointerEvents,
                   }}
-                  className="mobile-safe-height absolute top-5 inset-0 flex items-center justify-center pointer-events-none"
+                  className="mobile-safe-height absolute top-0 inset-0 flex items-center justify-center pointer-events-none"
                 >
                   <div className="text-center w-full max-w-5xl pointer-events-auto">
                     <h2
@@ -723,7 +723,7 @@ export default function Home() {
                         <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.4em] text-[#00f0ff] mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                           Total Prize Pool
                         </span>
-                        <div className="px-10 py-3 border-4 border-black bg-[#c0ff00] shadow-[12px_12px_12px_rgba(0,0,0,0.4)] transform hover:scale-105 transition-transform duration-300">
+                        <div className="px-6 sm:px-10 py-3 border-4 border-black bg-[#c0ff00] shadow-[12px_12px_12px_rgba(0,0,0,0.4)] transform hover:scale-105 transition-transform duration-300">
                           <h3 className="text-4xl sm:text-7xl font-black text-black tracking-tighter leading-none">
                             ₹1,45,000
                           </h3>
