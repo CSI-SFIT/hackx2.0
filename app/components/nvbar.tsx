@@ -23,10 +23,10 @@ const navCubes: NavCube[] = [
     accent: "#00f0ff",
   },
   { label: "Timeline", shortLabel: "TL", href: "/timeline", accent: "#c0ff00" },
-  { label: "Payment", shortLabel: "PAY", href: "/payment", accent: "#ff00a0" },
   { label: "Sponsors", shortLabel: "SP", href: "/sponsors", accent: "#ffd23f" },
   { label: "F.A.Q", shortLabel: "FAQ", href: "/faq", accent: "#00f0ff" },
   { label: "Contact", shortLabel: "CT", href: "/contact", accent: "#c0ff00" },
+  { label: "Credits", shortLabel: "CR", href: "/credits", accent: "#ff00a0" },
 ];
 
 function isActivePath(pathname: string, href: string) {

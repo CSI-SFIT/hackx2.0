@@ -6,8 +6,9 @@ import Preloader from "@/ui/components/preloader";
 import ScrollSequence from "@/ui/components/scroll-sequence";
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import Link from "next/link";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback, useMemo } from "react";
 import { Nvbar } from "./components/nvbar";
+import { useCountdown } from "./hooks/useCountdown";
 
 const STYLES = `
   @keyframes float {
@@ -292,6 +293,15 @@ export default function Home() {
   const [preloaderComplete, setPreloaderComplete] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Hackathon countdown - April 17th, 2026 (memoized to prevent re-creation)
+  const hackathonDate = useMemo(() => new Date('2026-04-17T00:00:00+05:30'), []); // IST
+  const countdown = useCountdown(hackathonDate);
+
+  // Memoize preloader completion callback to prevent infinite re-renders
+  const handlePreloaderComplete = useCallback(() => {
+    setPreloaderComplete(true);
+  }, []);
+
   React.useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -396,7 +406,7 @@ export default function Home() {
       className={`relative min-h-screen font-sans selection:bg-[#ff00a0] selection:text-white ${isLightMode ? "bg-[#f5f5f5]" : "bg-black"}`}
     >
       <Preloader
-        onComplete={() => setPreloaderComplete(true)}
+        onComplete={handlePreloaderComplete}
         optimizeForPerformance
       />
       <style dangerouslySetInnerHTML={{ __html: STYLES }} />
@@ -479,7 +489,7 @@ export default function Home() {
               </span>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-3 ">
                 <span className="text-xl sm:text-2xl font-black text-[#ff00a0]">
-                  32
+                  {countdown.days}
                 </span>
                 <span className="text-xs font-semibold text-black/60 dark:text-white/60">
                   Days
@@ -488,7 +498,7 @@ export default function Home() {
                   :
                 </span>
                 <span className="text-xl sm:text-2xl font-black text-[#00f0ff]">
-                  10
+                  {countdown.hours}
                 </span>
                 <span className="text-xs font-semibold text-black/60 dark:text-white/60">
                   Hours
@@ -497,7 +507,7 @@ export default function Home() {
                   :
                 </span>
                 <span className="text-xl sm:text-2xl font-black text-[#ff00a0]">
-                  57
+                  {countdown.minutes}
                 </span>
                 <span className="text-xs font-semibold text-black/60 dark:text-white/60">
                   Minutes
@@ -927,15 +937,15 @@ export default function Home() {
                 </h2>
 
                 <div className="mt-10 flex flex-wrap items-center justify-center gap-6 sm:gap-8 cursor-target">
-                  <CountdownItem value="32" label="Days" color="#ff00a0" />
+                  <CountdownItem value={countdown.days.toString()} label="Days" color="#ff00a0" />
                   <div className="text-4xl font-black text-black hidden sm:block">
                     :
                   </div>
-                  <CountdownItem value="10" label="Hours" color="#00f0ff" />
+                  <CountdownItem value={countdown.hours.toString()} label="Hours" color="#00f0ff" />
                   <div className="text-4xl font-black text-black hidden sm:block">
                     :
                   </div>
-                  <CountdownItem value="57" label="Minutes" color="#ff00a0" />
+                  <CountdownItem value={countdown.minutes.toString()} label="Minutes" color="#ff00a0" />
                 </div>
               </div>
               {/* RESOURCES & TEAM SECTION */}
@@ -983,16 +993,20 @@ export default function Home() {
                     Powered by CSI SFIT and GDG SFIT.
                   </p>
                   <div className="grid grid-cols-2 gap-4 px-2 sm:px-0">
-                    {["Shahiil", "Roen", "Aryan"].map((name, i) => (
+                    {[
+                      { name: "Shahiil Shet", designation: "CSI SFIT President" },
+                      { name: "Reon Lemos", designation: "GDG SFIT President" },
+                      { name: "Aryan Brahmane", designation: "CSI SFIT Treasurer" }
+                    ].map((member, i) => (
                       <div
                         key={i}
                         className="flex flex-col border-b-[3px] border-black/20 pb-2"
                       >
                         <span className="font-black uppercase tracking-wider">
-                          {name}
+                          {member.name}
                         </span>
                         <span className="text-xs font-bold opacity-75">
-                          Core Member
+                          {member.designation}
                         </span>
                       </div>
                     ))}

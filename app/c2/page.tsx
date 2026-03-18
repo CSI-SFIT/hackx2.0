@@ -2,7 +2,8 @@
 
 import { useTheme } from "@/app/providers/theme-provider";
 import Link from "next/link";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
+import { useCountdown } from "@/app/hooks/useCountdown";
 
 const STYLES = `
   @keyframes float {
@@ -150,6 +151,10 @@ function CountdownItem({
 
 export default function Home() {
   const { isLightMode, setWaveTilesOpacity } = useTheme();
+
+  // Hackathon countdown - April 17th, 2026 (memoized to prevent re-creation)
+  const hackathonDate = useMemo(() => new Date('2026-04-17T00:00:00+05:30'), []); // IST
+  const countdown = useCountdown(hackathonDate);
 
   useEffect(
     () => setWaveTilesOpacity("opacity-75", "opacity-30"),
@@ -474,22 +479,22 @@ export default function Home() {
                     desc: "Form your team and secure your spot.",
                   },
                   {
-                    date: "18th Apr 2026",
+                    date: "17th Apr 2026",
                     title: "Hacking Begins",
                     desc: "Check-in, opening ceremony, and the 24-hr countdown starts.",
                   },
                   {
-                    date: "18th Apr 2026",
+                    date: "17th Apr 2026",
                     title: "Midnight Mentorship",
                     desc: "Expert round-tables and technical workshops.",
                   },
                   {
-                    date: "19th Apr 2026",
+                    date: "18th Apr 2026",
                     title: "Hacking Concludes",
                     desc: "Final submissions and code freeze.",
                   },
                   {
-                    date: "19th Apr 2026",
+                    date: "18th Apr 2026",
                     title: "Closing Ceremony",
                     desc: "Judging, top finalist pitches, and the ₹1,45,000 prize distribution.",
                   },
@@ -625,19 +630,19 @@ export default function Home() {
               className={`pointer-events-auto relative px-8 py-10 sm:py-14 text-center mx-auto max-w-4xl mt-32 border-[3px] ${isLightMode ? "border-black bg-[#c0ff00] shadow-[12px_12px_0_#000]" : "border-white/30 bg-[#c0ff00] shadow-[12px_12px_0_#fff]"}`}
             >
               <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter text-black">
-                Hacking Begins In
+                Hacking Begins In (17th Apr 2026)
               </h2>
 
               <div className="mt-10 flex flex-wrap items-center justify-center gap-6 sm:gap-8 cursor-target">
-                <CountdownItem value="32" label="Days" color="#ff00a0" />
+                <CountdownItem value={countdown.days.toString()} label="Days" color="#ff00a0" />
                 <div className="text-4xl font-black text-black hidden sm:block">
                   :
                 </div>
-                <CountdownItem value="10" label="Hours" color="#00f0ff" />
+                <CountdownItem value={countdown.hours.toString()} label="Hours" color="#00f0ff" />
                 <div className="text-4xl font-black text-black hidden sm:block">
                   :
                 </div>
-                <CountdownItem value="57" label="Minutes" color="#ff00a0" />
+                <CountdownItem value={countdown.minutes.toString()} label="Minutes" color="#ff00a0" />
               </div>
             </div>
           </div>
