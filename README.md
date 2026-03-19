@@ -11,7 +11,6 @@ The application is built with a strong emphasis on scalable design and visual un
 - **Responsive Grid**: Built to organically scale from desktop to mobile screens using the tile structural system.
 
 ## 🚀 Tech Stack
-
 - **Framework**: [Next.js](https://nextjs.org/) (App Router)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 - **Styling**: Tailwind CSS (for native dark mode handling and utility classes)
