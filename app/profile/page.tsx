@@ -1,5 +1,6 @@
 "use client";
 
+import { CouponTear } from "@/app/components/ui/coupon-tear";
 import {
   LoadingSpinner
 } from "@/app/components/ui/loading-spinner";
@@ -59,17 +60,17 @@ function DomainBadge({
 function formatPhoneNumber(phone: string): string {
   if (!phone) return "";
   const cleaned = phone.replace(/\D/g, "");
-  
+
   // Indian format: +91 XXXXX XXXXX (for 10-digit)
   // or +91 XXXXX XXXXX (if 12 digits with 91 prefix)
   if (cleaned.length === 10) {
     return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
   }
-  
+
   if (cleaned.length === 12 && cleaned.startsWith("91")) {
     return `+${cleaned.slice(0, 2)} ${cleaned.slice(2, 7)} ${cleaned.slice(7)}`;
   }
-  
+
   return phone;
 }
 
@@ -82,6 +83,10 @@ export default function ProfilePage() {
   const [registrationChecked, setRegistrationChecked] = useState(false);
   const [fetchingRegistration, setFetchingRegistration] = useState(true);
   const [avatarGender, setAvatarGender] = useState<"male" | "female">("male");
+  // Tracks meals that existed at page-load time — used to detect genuinely new collections
+  const seenMealsRef = useRef<Set<string>>(new Set());
+  // Coupon tear overlay — set to the meal label when a new meal is collected
+  const [couponMeal, setCouponMeal] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile?.user_id) return;
@@ -117,13 +122,65 @@ export default function ProfilePage() {
         .eq("user_id", profile.user_id);
 
       if (data) {
-        setMealsTaken(data.map((log) => log.meal));
+        const meals = data.map((log) => log.meal);
+        // Seed seenMealsRef with whatever was already collected at page load
+        meals.forEach((m) => seenMealsRef.current.add(m));
+        setMealsTaken(meals);
       }
       setFetchingMeals(false);
     };
 
     fetchRegistration();
     fetchMeals();
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      channel = supabase
+        .channel(`food-logs-${profile.user_id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "food_logs",
+            // No server-side filter — filtered subscriptions require replica identity
+            // setup on the column; we filter by user_id on the client side instead.
+          },
+          (payload) => {
+            console.log("[food-logs] realtime payload:", payload);
+            const newMeal = payload.new?.meal as string | undefined;
+            const rowUserId = payload.new?.user_id as string | undefined;
+            // Ignore events for other users
+            if (rowUserId !== profile.user_id) return;
+            if (!newMeal) return;
+
+            // Only show the coupon tear if this meal wasn't collected before page load
+            if (!seenMealsRef.current.has(newMeal)) {
+              seenMealsRef.current.add(newMeal);
+              const label = MEAL_LABELS[newMeal] ?? newMeal;
+              setCouponMeal(label);
+            }
+
+            setMealsTaken((prev) =>
+              prev.includes(newMeal) ? prev : [...prev, newMeal]
+            );
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) {
+            console.warn("[food-logs] realtime error:", err);
+          } else {
+            console.log("[food-logs] channel status:", status);
+          }
+        });
+    } catch (err) {
+      console.warn("[food-logs] failed to subscribe to realtime:", err);
+    }
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [profile]);
 
   const downloadQR = useCallback(() => {
@@ -157,214 +214,215 @@ export default function ProfilePage() {
   }, [profile]);
 
   return (
-    <div
-      className={`relative min-h-screen font-sans transition-colors duration-500 mb-12 lg:mb-0 ${isLightMode ? "bg-[#f5f5f5]" : "bg-black"}`}
-    >
-      <main className="mx-auto flex w-full max-w-5xl flex-col px-4 py-20 sm:px-6 lg:px-8 relative z-20">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <p
-            className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLightMode ? "text-black/55" : "text-white/50"}`}
-          >
-            HackX 2.0
-          </p>
-          <h1
-            className={`mt-3 font-black uppercase tracking-tighter text-5xl sm:text-7xl ${isLightMode ? "text-black" : "text-white"}`}
-          >
-            Profile
-          </h1>
-        </div>
-
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <LoadingSpinner size="lg" />
+    <>
+      <div
+        className={`relative min-h-screen font-sans transition-colors duration-500 mb-12 lg:mb-0 ${isLightMode ? "bg-[#f5f5f5]" : "bg-black"}`}
+      >
+        <main className="mx-auto flex w-full max-w-5xl flex-col px-4 py-20 sm:px-6 lg:px-8 relative z-20">
+          {/* Header */}
+          <div className="text-center mb-10">
             <p
-              className={`mt-4 text-[10px] font-black uppercase tracking-widest ${isLightMode ? "text-black/50" : "text-white/40"}`}
+              className={`text-[10px] font-black uppercase tracking-[0.4em] ${isLightMode ? "text-black/55" : "text-white/50"}`}
             >
-              Loading your identity...
+              HackX 2.0
             </p>
+            <h1
+              className={`mt-3 font-black uppercase tracking-tighter text-5xl sm:text-7xl ${isLightMode ? "text-black" : "text-white"}`}
+            >
+              Profile
+            </h1>
           </div>
-        ) : !profile ? (
-          <div className="flex flex-col items-center justify-center py-20 border-[3px] border-dashed border-white/20">
-            <p className="text-white/50 text-sm font-bold uppercase tracking-widest">
-              Profile not found
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
-              {/* Left Column: Info Card */}
-              <div
-                className={`border-[3px] p-8 h-fit ${isLightMode
-                  ? "border-black bg-white shadow-[8px_8px_0_#000]"
-                  : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"
-                  }`}
+
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <LoadingSpinner size="lg" />
+              <p
+                className={`mt-4 text-[10px] font-black uppercase tracking-widest ${isLightMode ? "text-black/50" : "text-white/40"}`}
               >
-                <div className="flex flex-col gap-6">
-                  {/* Avatar with Gender Toggle - Only for leader and member */}
-                  {(profile.role === "leader" || profile.role === "member") && (
-                    <div className="flex items-center gap-4 pb-4 border-b-[3px] border-black/10">
-                      <img
-                        src={`/avatar-${avatarGender}.png`}
-                        alt={`Profile avatar - ${avatarGender}`}
-                        className="w-16 h-16 object-cover border-[2px] border-black"
-                      />
-                      <div className="flex flex-col gap-2">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setAvatarGender("male")}
-                            className={`border-[2px] px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] transition-all ${avatarGender === "male"
-                              ? isLightMode
-                                ? "border-black bg-[#c0ff00] text-black shadow-[2px_2px_0_#000]"
-                                : "border-white bg-[#c0ff00] text-black shadow-[2px_2px_0_#fff]"
-                              : isLightMode
-                                ? "border-black/30 bg-white/50 text-black/50"
-                                : "border-white/30 bg-black/30 text-white/40"
-                              }`}
-                          >
-                            M
-                          </button>
-                          <button
-                            onClick={() => setAvatarGender("female")}
-                            className={`border-[2px] px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] transition-all ${avatarGender === "female"
-                              ? isLightMode
-                                ? "border-black bg-[#c0ff00] text-black shadow-[2px_2px_0_#000]"
-                                : "border-white bg-[#c0ff00] text-black shadow-[2px_2px_0_#fff]"
-                              : isLightMode
-                                ? "border-black/30 bg-white/50 text-black/50"
-                                : "border-white/30 bg-black/30 text-white/40"
-                              }`}
-                          >
-                            F
-                          </button>
-                        </div>
-                        <p className={`text-[8px] font-bold ${isLightMode ? "text-black/30" : "text-white/20"}`}>
-                          Avatar Style
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <p
-                      className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
-                    >
-                      Full Name
-                    </p>
-                    <p
-                      className={`text-2xl font-black uppercase tracking-wide ${isLightMode ? "text-black" : "text-white"}`}
-                    >
-                      {profile.name}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p
-                      className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
-                    >
-                      Team
-                    </p>
-                    <p
-                      className={`text-xl font-black uppercase tracking-wide ${isLightMode ? "text-black" : "text-white"}`}
-                    >
-                      {profile.team_name}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p
-                      className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 ${isLightMode ? "text-black/50" : "text-white/40"}`}
-                    >
-                      Role & Domain
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <RoleBadge
-                        role={profile.role}
-                        isLightMode={isLightMode}
-                      />
-                      <DomainBadge
-                        domain={profile.domain}
-                        isLightMode={isLightMode}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <p
-                      className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
-                    >
-                      Email
-                    </p>
-                    <p
-                      className={`text-sm font-bold ${isLightMode ? "text-black/70" : "text-white/70"}`}
-                    >
-                      {profile.email}
-                    </p>
-                  </div>
-
-                  {profile.phone && (
-                    <div>
-                      <p
-                        className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
-                      >
-                        Phone
-                      </p>
-                      <p
-                        className={`text-sm font-bold ${isLightMode ? "text-black/70" : "text-white/70"}`}
-                      >
-                        {formatPhoneNumber(profile.phone)}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="pt-4 border-t-[3px] border-black/10">
-                    <button
-                      onClick={signOut}
-                      className={`w-full border-[3px] px-4 py-3 text-xs font-black uppercase tracking-[0.2em] transition-all hover:-translate-y-1 ${isLightMode
-                        ? "border-black bg-black text-white shadow-[6px_6px_0_#ff00a0] hover:bg-zinc-800"
-                        : "border-white bg-white text-black shadow-[6px_6px_0_#ff00a0] hover:bg-zinc-200"
-                        }`}
-                    >
-                      Logout Session →
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: QR Code, Registration, and Food sections */}
-              <div className="flex flex-col gap-6">
-                {/* QR Code Card - Compact */}
+                Loading your identity...
+              </p>
+            </div>
+          ) : !profile ? (
+            <div className="flex flex-col items-center justify-center py-20 border-[3px] border-dashed border-white/20">
+              <p className="text-white/50 text-sm font-bold uppercase tracking-widest">
+                Profile not found
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in duration-500">
+                {/* Left Column: Info Card */}
                 <div
-                  className={`border-[3px] p-6 flex flex-col items-center gap-4 ${isLightMode
+                  className={`border-[3px] p-8 h-fit ${isLightMode
                     ? "border-black bg-white shadow-[8px_8px_0_#000]"
                     : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"
                     }`}
                 >
-                  <p
-                    className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLightMode ? "text-black/50" : "text-white/40"}`}
-                  >
-                    Your QR Code
-                  </p>
+                  <div className="flex flex-col gap-6">
+                    {/* Avatar with Gender Toggle - Only for leader and member */}
+                    {(profile.role === "leader" || profile.role === "member") && (
+                      <div className="flex items-center gap-4 pb-4 border-b-[3px] border-black/10">
+                        <img
+                          src={`/avatar-${avatarGender}.png`}
+                          alt={`Profile avatar - ${avatarGender}`}
+                          className="w-16 h-16 object-cover border-[2px] border-black"
+                        />
+                        <div className="flex flex-col gap-2">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setAvatarGender("male")}
+                              className={`border-[2px] px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] transition-all ${avatarGender === "male"
+                                ? isLightMode
+                                  ? "border-black bg-[#c0ff00] text-black shadow-[2px_2px_0_#000]"
+                                  : "border-white bg-[#c0ff00] text-black shadow-[2px_2px_0_#fff]"
+                                : isLightMode
+                                  ? "border-black/30 bg-white/50 text-black/50"
+                                  : "border-white/30 bg-black/30 text-white/40"
+                                }`}
+                            >
+                              M
+                            </button>
+                            <button
+                              onClick={() => setAvatarGender("female")}
+                              className={`border-[2px] px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] transition-all ${avatarGender === "female"
+                                ? isLightMode
+                                  ? "border-black bg-[#c0ff00] text-black shadow-[2px_2px_0_#000]"
+                                  : "border-white bg-[#c0ff00] text-black shadow-[2px_2px_0_#fff]"
+                                : isLightMode
+                                  ? "border-black/30 bg-white/50 text-black/50"
+                                  : "border-white/30 bg-black/30 text-white/40"
+                                }`}
+                            >
+                              F
+                            </button>
+                          </div>
+                          <p className={`text-[8px] font-bold ${isLightMode ? "text-black/30" : "text-white/20"}`}>
+                            Avatar Style
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <p
+                        className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
+                      >
+                        Full Name
+                      </p>
+                      <p
+                        className={`text-2xl font-black uppercase tracking-wide ${isLightMode ? "text-black" : "text-white"}`}
+                      >
+                        {profile.name}
+                      </p>
+                    </div>
 
-                  <div
-                    ref={qrRef}
-                    className="border-[3px] border-black bg-white p-3"
-                  >
-                    <QRCodeSVG
-                      value={profile.user_id}
-                      size={150}
-                      level="H"
-                      bgColor="#ffffff"
-                      fgColor="#000000"
-                    />
+                    <div>
+                      <p
+                        className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
+                      >
+                        Team
+                      </p>
+                      <p
+                        className={`text-xl font-black uppercase tracking-wide ${isLightMode ? "text-black" : "text-white"}`}
+                      >
+                        {profile.team_name}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p
+                        className={`text-[10px] font-black uppercase tracking-[0.3em] mb-2 ${isLightMode ? "text-black/50" : "text-white/40"}`}
+                      >
+                        Role & Domain
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <RoleBadge
+                          role={profile.role}
+                          isLightMode={isLightMode}
+                        />
+                        <DomainBadge
+                          domain={profile.domain}
+                          isLightMode={isLightMode}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <p
+                        className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
+                      >
+                        Email
+                      </p>
+                      <p
+                        className={`text-sm font-bold ${isLightMode ? "text-black/70" : "text-white/70"}`}
+                      >
+                        {profile.email}
+                      </p>
+                    </div>
+
+                    {profile.phone && (
+                      <div>
+                        <p
+                          className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
+                        >
+                          Phone
+                        </p>
+                        <p
+                          className={`text-sm font-bold ${isLightMode ? "text-black/70" : "text-white/70"}`}
+                        >
+                          {formatPhoneNumber(profile.phone)}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="pt-4 border-t-[3px] border-black/10">
+                      <button
+                        onClick={signOut}
+                        className={`w-full border-[3px] px-4 py-3 text-xs font-black uppercase tracking-[0.2em] transition-all hover:-translate-y-1 ${isLightMode
+                          ? "border-black bg-black text-white shadow-[6px_6px_0_#ff00a0] hover:bg-zinc-800"
+                          : "border-white bg-white text-black shadow-[6px_6px_0_#ff00a0] hover:bg-zinc-200"
+                          }`}
+                      >
+                        Logout Session →
+                      </button>
+                    </div>
                   </div>
+                </div>
 
-                  <p
-                    className={`text-center text-[8px] font-bold ${isLightMode ? "text-black/40" : "text-white/30"}`}
+                {/* Right Column: QR Code, Registration, and Food sections */}
+                <div className="flex flex-col gap-6">
+                  {/* QR Code Card - Compact */}
+                  <div
+                    className={`border-[3px] p-6 flex flex-col items-center gap-4 ${isLightMode
+                      ? "border-black bg-white shadow-[8px_8px_0_#000]"
+                      : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"
+                      }`}
                   >
-                    Show at food counter
-                  </p>
+                    <p
+                      className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLightMode ? "text-black/50" : "text-white/40"}`}
+                    >
+                      Your QR Code
+                    </p>
 
-                  {/* <button
+                    <div
+                      ref={qrRef}
+                      className="border-[3px] border-black bg-white p-3"
+                    >
+                      <QRCodeSVG
+                        value={profile.user_id}
+                        size={150}
+                        level="H"
+                        bgColor="#ffffff"
+                        fgColor="#000000"
+                      />
+                    </div>
+
+                    <p
+                      className={`text-center text-[8px] font-bold ${isLightMode ? "text-black/40" : "text-white/30"}`}
+                    >
+                      Show at food counter
+                    </p>
+
+                    {/* <button
                     type="button"
                     onClick={downloadQR}
                     className={`w-full border-[3px] px-4 py-3 text-xs font-black uppercase tracking-[0.2em] transition-all hover:-translate-y-1 ${isLightMode
@@ -374,211 +432,220 @@ export default function ProfilePage() {
                   >
                     Download QR Code ↓
                   </button> */}
-                </div>
-
-                {/* Registration & Food Sections - Stacked for better fit */}
-                <div className="flex flex-col gap-6">
-                  {/* Registration Check Section */}
-                  <div
-                    className={`border-[3px] p-8 animate-in slide-in-from-bottom-4 duration-700 ${isLightMode
-                      ? "border-black bg-white shadow-[8px_8px_0_#000]"
-                      : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"
-                      }`}
-                  >
-                    <div className="flex items-center justify-between mb-8">
-                      <div>
-                        <p
-                          className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
-                        >
-                          Registration Status
-                        </p>
-                        <h3
-                          className={`text-2xl font-black uppercase tracking-tight ${isLightMode ? "text-black" : "text-white"}`}
-                        >
-                          Check-In Status
-                        </h3>
-                      </div>
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center border-[3px] ${isLightMode ? "border-black bg-[#00f0ff]" : "border-white bg-[#00f0ff]"} shadow-[4px_4px_0_#000]`}
-                      >
-                        <span className="text-xl">✓</span>
-                      </div>
-                    </div>
-
-                    {fetchingRegistration ? (
-                      <div className="flex items-center gap-3 py-4">
-                        <div className="h-4 w-4 border-2 border-t-transparent border-black animate-spin" />
-                        <span className="text-[10px] font-black uppercase tracking-widest opacity-50">
-                          Fetching status...
-                        </span>
-                      </div>
-                    ) : (
-                      <div>
-                        <div
-                          className={`relative border-[3px] p-5 transition-all duration-300 ${registrationChecked
-                            ? isLightMode
-                              ? "border-black bg-[#00f0ff]/10"
-                              : "border-[#00f0ff] bg-[#00f0ff]/5"
-                            : isLightMode
-                              ? "border-black/5 bg-black/[0.02] opacity-60"
-                              : "border-white/10 bg-white/[0.02] opacity-40"
-                            }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div
-                              className={`flex h-8 w-8 items-center justify-center border-2 ${registrationChecked
-                                ? "border-black bg-[#00f0ff] text-black"
-                                : isLightMode
-                                  ? "border-black/10 bg-black/5 text-black/20"
-                                  : "border-white/10 bg-white/5 text-white/20"
-                                }`}
-                            >
-                              {registrationChecked ? "✓" : "○"}
-                            </div>
-                            <div className="flex-1 ml-4">
-                              <p
-                                className={`text-sm font-black uppercase tracking-tight ${registrationChecked
-                                  ? isLightMode
-                                    ? "text-black"
-                                    : "text-white"
-                                  : isLightMode
-                                    ? "text-black/30"
-                                    : "text-white/20"
-                                  }`}
-                              >
-                                Registration Desk Check-In
-                              </p>
-                            </div>
-                            {registrationChecked && (
-                              <span className="text-[10px] font-black uppercase tracking-widest text-[#00f0ff]">
-                                Checked In
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <p
-                          className={`mt-4 text-[10px] font-bold uppercase tracking-wider ${isLightMode ? "text-black/40" : "text-white/30"}`}
-                        >
-                          * Show your QR code at the registration desk to complete check-in.
-                        </p>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Food Checklist Section */}
-                  <div
-                    className={`border-[3px] p-8 animate-in slide-in-from-bottom-4 duration-700 ${isLightMode
-                      ? "border-black bg-white shadow-[8px_8px_0_#000]"
-                      : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"
-                      }`}
-                  >
-                    <div className="flex items-center justify-between mb-8">
-                      <div>
-                        <p
-                          className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
+                  {/* Registration & Food Sections - Stacked for better fit */}
+                  <div className="flex flex-col gap-6">
+                    {/* Registration Check Section */}
+                    <div
+                      className={`border-[3px] p-8 animate-in slide-in-from-bottom-4 duration-700 ${isLightMode
+                        ? "border-black bg-white shadow-[8px_8px_0_#000]"
+                        : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"
+                        }`}
+                    >
+                      <div className="flex items-center justify-between mb-8">
+                        <div>
+                          <p
+                            className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
+                          >
+                            Registration Status
+                          </p>
+                          <h3
+                            className={`text-2xl font-black uppercase tracking-tight ${isLightMode ? "text-black" : "text-white"}`}
+                          >
+                            Check-In Status
+                          </h3>
+                        </div>
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center border-[3px] ${isLightMode ? "border-black bg-[#00f0ff]" : "border-white bg-[#00f0ff]"} shadow-[4px_4px_0_#000]`}
                         >
-                          Meal Status
-                        </p>
-                        <h3
-                          className={`text-2xl font-black uppercase tracking-tight ${isLightMode ? "text-black" : "text-white"}`}
-                        >
-                          Food Checklist
-                        </h3>
+                          <span className="text-xl">✓</span>
+                        </div>
                       </div>
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center border-[3px] ${isLightMode ? "border-black bg-[#c0ff00]" : "border-white bg-[#c0ff00]"} shadow-[4px_4px_0_#000]`}
-                      >
-                        <span className="text-xl">🍱</span>
-                      </div>
-                    </div>
 
-                    {fetchingMeals ? (
-                      <div className="flex items-center gap-3 py-4">
-                        <div className="h-4 w-4 border-2 border-t-transparent border-black animate-spin" />
-                        <span className="text-[10px] font-black uppercase tracking-widest opacity-50">
-                          Fetching logs...
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                        {Object.entries(MEAL_LABELS).map(([key, label]) => {
-                          const isTaken = mealsTaken.includes(key);
-                          return (
-                            <div
-                              key={key}
-                              className={`relative border-[3px] p-5 transition-all duration-300 ${isTaken
-                                ? isLightMode
-                                  ? "border-black bg-[#c0ff00]/10"
-                                  : "border-[#c0ff00] bg-[#c0ff00]/5"
-                                : isLightMode
-                                  ? "border-black/5 bg-black/[0.02] opacity-60"
-                                  : "border-white/10 bg-white/[0.02] opacity-40"
-                                }`}
-                            >
-                              <div className="flex items-center justify-between mb-4">
-                                <div
-                                  className={`flex h-8 w-8 items-center justify-center border-2 ${isTaken
-                                    ? "border-black bg-[#c0ff00] text-black"
-                                    : isLightMode
-                                      ? "border-black/10 bg-black/5 text-black/20"
-                                      : "border-white/10 bg-white/5 text-white/20"
-                                    }`}
-                                >
-                                  {isTaken ? (
-                                    <Check className="w-4 h-4" strokeWidth={4} />
-                                  ) : (
-                                    <Clock className="w-4 h-4" />
-                                  )}
-                                </div>
-                                {isTaken && (
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-[#c0ff00]">
-                                    Collected
-                                  </span>
-                                )}
-                              </div>
-                              <p
-                                className={`text-sm font-black uppercase tracking-tight ${isTaken
-                                  ? isLightMode
-                                    ? "text-black"
-                                    : "text-white"
+                      {fetchingRegistration ? (
+                        <div className="flex items-center gap-3 py-4">
+                          <div className="h-4 w-4 border-2 border-t-transparent border-black animate-spin" />
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-50">
+                            Fetching status...
+                          </span>
+                        </div>
+                      ) : (
+                        <div>
+                          <div
+                            className={`relative border-[3px] p-5 transition-all duration-300 ${registrationChecked
+                              ? isLightMode
+                                ? "border-black bg-[#00f0ff]/10"
+                                : "border-[#00f0ff] bg-[#00f0ff]/5"
+                              : isLightMode
+                                ? "border-black/5 bg-black/[0.02] opacity-60"
+                                : "border-white/10 bg-white/[0.02] opacity-40"
+                              }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div
+                                className={`flex h-8 w-8 items-center justify-center border-2 ${registrationChecked
+                                  ? "border-black bg-[#00f0ff] text-black"
                                   : isLightMode
-                                    ? "text-black/30"
-                                    : "text-white/20"
+                                    ? "border-black/10 bg-black/5 text-black/20"
+                                    : "border-white/10 bg-white/5 text-white/20"
                                   }`}
                               >
-                                {label}
-                              </p>
-
-                              {/* Corner indicators for taken meals */}
-                              {isTaken && (
-                                <>
-                                  <div
-                                    className={`absolute -top-1 -left-1 w-2 h-2 border-t-2 border-l-2 ${isLightMode ? "border-black" : "border-[#c0ff00]"}`}
-                                  />
-                                  <div
-                                    className={`absolute -top-1 -right-1 w-2 h-2 border-t-2 border-r-2 ${isLightMode ? "border-black" : "border-[#c0ff00]"}`}
-                                  />
-                                </>
+                                {registrationChecked ? "✓" : "○"}
+                              </div>
+                              <div className="flex-1 ml-4">
+                                <p
+                                  className={`text-sm font-black uppercase tracking-tight ${registrationChecked
+                                    ? isLightMode
+                                      ? "text-black"
+                                      : "text-white"
+                                    : isLightMode
+                                      ? "text-black/30"
+                                      : "text-white/20"
+                                    }`}
+                                >
+                                  Registration Desk Check-In
+                                </p>
+                              </div>
+                              {registrationChecked && (
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[#00f0ff]">
+                                  Checked In
+                                </span>
                               )}
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                          </div>
+                          <p
+                            className={`mt-4 text-[10px] font-bold uppercase tracking-wider ${isLightMode ? "text-black/40" : "text-white/30"}`}
+                          >
+                            * Show your QR code at the registration desk to complete check-in.
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
-                    <p
-                      className={`mt-8 text-[10px] font-bold uppercase tracking-wider ${isLightMode ? "text-black/40" : "text-white/30"}`}
+                    {/* Food Checklist Section */}
+                    <div
+                      className={`border-[3px] p-8 animate-in slide-in-from-bottom-4 duration-700 ${isLightMode
+                        ? "border-black bg-white shadow-[8px_8px_0_#000]"
+                        : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"
+                        }`}
                     >
-                      * Please present your QR code at the food counter to collect
-                      your meal.
-                    </p>
+                      <div className="flex items-center justify-between mb-8">
+                        <div>
+                          <p
+                            className={`text-[10px] font-black uppercase tracking-[0.3em] mb-1 ${isLightMode ? "text-black/50" : "text-white/40"}`}
+                          >
+                            Meal Status
+                          </p>
+                          <h3
+                            className={`text-2xl font-black uppercase tracking-tight ${isLightMode ? "text-black" : "text-white"}`}
+                          >
+                            Food Checklist
+                          </h3>
+                        </div>
+                        <div
+                          className={`flex h-12 w-12 items-center justify-center border-[3px] ${isLightMode ? "border-black bg-[#c0ff00]" : "border-white bg-[#c0ff00]"} shadow-[4px_4px_0_#000]`}
+                        >
+                          <span className="text-xl">🍱</span>
+                        </div>
+                      </div>
+
+                      {fetchingMeals ? (
+                        <div className="flex items-center gap-3 py-4">
+                          <div className="h-4 w-4 border-2 border-t-transparent border-black animate-spin" />
+                          <span className="text-[10px] font-black uppercase tracking-widest opacity-50">
+                            Fetching logs...
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                          {Object.entries(MEAL_LABELS).map(([key, label]) => {
+                            const isTaken = mealsTaken.includes(key);
+                            return (
+                              <div
+                                key={key}
+                                className={`relative border-[3px] p-5 transition-all duration-300 ${isTaken
+                                  ? isLightMode
+                                    ? "border-black bg-[#c0ff00]/10"
+                                    : "border-[#c0ff00] bg-[#c0ff00]/5"
+                                  : isLightMode
+                                    ? "border-black/5 bg-black/[0.02] opacity-60"
+                                    : "border-white/10 bg-white/[0.02] opacity-40"
+                                  }`}
+                              >
+                                <div className="flex items-center justify-between mb-4">
+                                  <div
+                                    className={`flex h-8 w-8 items-center justify-center border-2 ${isTaken
+                                      ? "border-black bg-[#c0ff00] text-black"
+                                      : isLightMode
+                                        ? "border-black/10 bg-black/5 text-black/20"
+                                        : "border-white/10 bg-white/5 text-white/20"
+                                      }`}
+                                  >
+                                    {isTaken ? (
+                                      <Check className="w-4 h-4" strokeWidth={4} />
+                                    ) : (
+                                      <Clock className="w-4 h-4" />
+                                    )}
+                                  </div>
+                                  {isTaken && (
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-[#c0ff00]">
+                                      Collected
+                                    </span>
+                                  )}
+                                </div>
+                                <p
+                                  className={`text-sm font-black uppercase tracking-tight ${isTaken
+                                    ? isLightMode
+                                      ? "text-black"
+                                      : "text-white"
+                                    : isLightMode
+                                      ? "text-black/30"
+                                      : "text-white/20"
+                                    }`}
+                                >
+                                  {label}
+                                </p>
+
+                                {/* Corner indicators for taken meals */}
+                                {isTaken && (
+                                  <>
+                                    <div
+                                      className={`absolute -top-1 -left-1 w-2 h-2 border-t-2 border-l-2 ${isLightMode ? "border-black" : "border-[#c0ff00]"}`}
+                                    />
+                                    <div
+                                      className={`absolute -top-1 -right-1 w-2 h-2 border-t-2 border-r-2 ${isLightMode ? "border-black" : "border-[#c0ff00]"}`}
+                                    />
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <p
+                        className={`mt-8 text-[10px] font-bold uppercase tracking-wider ${isLightMode ? "text-black/40" : "text-white/30"}`}
+                      >
+                        * Please present your QR code at the food counter to collect
+                        your meal.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </>
-        )}
-      </main>
-    </div>
+            </>
+          )}
+        </main>
+      </div>
+
+      {/* Coupon tear overlay — triggered by Realtime meal collection event */}
+      {couponMeal && (
+        <CouponTear
+          mealLabel={couponMeal}
+          onDismiss={() => setCouponMeal(null)}
+        />
+      )}
+    </>
   );
 }
