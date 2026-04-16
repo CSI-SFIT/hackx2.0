@@ -11,6 +11,7 @@ import { MEAL_LABELS } from "@/libs/utils";
 import { Check, Clock } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 function RoleBadge({
   role,
