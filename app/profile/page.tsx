@@ -59,17 +59,17 @@ function DomainBadge({
 function formatPhoneNumber(phone: string): string {
   if (!phone) return "";
   const cleaned = phone.replace(/\D/g, "");
-  
+
   // Indian format: +91 XXXXX XXXXX (for 10-digit)
   // or +91 XXXXX XXXXX (if 12 digits with 91 prefix)
   if (cleaned.length === 10) {
     return `+91 ${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
   }
-  
+
   if (cleaned.length === 12 && cleaned.startsWith("91")) {
     return `+${cleaned.slice(0, 2)} ${cleaned.slice(2, 7)} ${cleaned.slice(7)}`;
   }
-  
+
   return phone;
 }
 
@@ -82,6 +82,8 @@ export default function ProfilePage() {
   const [registrationChecked, setRegistrationChecked] = useState(false);
   const [fetchingRegistration, setFetchingRegistration] = useState(true);
   const [avatarGender, setAvatarGender] = useState<"male" | "female">("male");
+  // Tracks meals that existed at page-load time — used to detect genuinely new collections
+  const seenMealsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!profile?.user_id) return;
@@ -117,13 +119,87 @@ export default function ProfilePage() {
         .eq("user_id", profile.user_id);
 
       if (data) {
-        setMealsTaken(data.map((log) => log.meal));
+        const meals = data.map((log) => log.meal);
+        // Seed seenMealsRef with whatever was already collected at page load
+        meals.forEach((m) => seenMealsRef.current.add(m));
+        setMealsTaken(meals);
       }
       setFetchingMeals(false);
     };
 
     fetchRegistration();
     fetchMeals();
+
+    // ── Realtime: watch food_logs for this user ──────────────────────────────
+    const MEAL_EMOJIS: Record<string, string> = {
+      day1_lunch: "🍛",
+      day1_dinner: "🍽️",
+      day2_brunch: "🥞",
+    };
+
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      channel = supabase
+        .channel(`food-logs-${profile.user_id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "food_logs",
+            // No server-side filter — filtered subscriptions require replica identity
+            // setup on the column; we filter by user_id on the client side instead.
+          },
+          (payload) => {
+            console.log("[food-logs] realtime payload:", payload);
+            const newMeal = payload.new?.meal as string | undefined;
+            const rowUserId = payload.new?.user_id as string | undefined;
+            // Ignore events for other users
+            if (rowUserId !== profile.user_id) return;
+            if (!newMeal) return;
+
+            // Only show the toast if this meal wasn't collected before page load
+            if (!seenMealsRef.current.has(newMeal)) {
+              seenMealsRef.current.add(newMeal);
+              const emoji = MEAL_EMOJIS[newMeal] ?? "🍴";
+              const label = MEAL_LABELS[newMeal] ?? newMeal;
+              toast.success(
+                `${emoji} ${label} collected! Enjoy your meal! ${emoji}`,
+                {
+                  duration: 5000,
+                  style: {
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    fontSize: "0.75rem",
+                    border: "3px solid #c0ff00",
+                    background: "#000",
+                    color: "#c0ff00",
+                  },
+                }
+              );
+            }
+
+            setMealsTaken((prev) =>
+              prev.includes(newMeal) ? prev : [...prev, newMeal]
+            );
+          }
+        )
+        .subscribe((status, err) => {
+          if (err) {
+            console.warn("[food-logs] realtime error:", err);
+          } else {
+            console.log("[food-logs] channel status:", status);
+          }
+        });
+    } catch (err) {
+      console.warn("[food-logs] failed to subscribe to realtime:", err);
+    }
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
   }, [profile]);
 
   const downloadQR = useCallback(() => {
