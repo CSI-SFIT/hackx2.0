@@ -33,6 +33,7 @@ const baseNavCubes: NavCube[] = [
     accent: "#ff6b35",
   },
   { label: "F.A.Q", shortLabel: "FAQ", href: "/faq", accent: "#00f0ff" },
+  { label: "Feedback", shortLabel: "FB", href: "/feedback", accent: "#ff6b35" },
   { label: "Contact", shortLabel: "CT", href: "/contact", accent: "#c0ff00" },
 ];
 
@@ -151,6 +152,12 @@ export function Nvbar() {
           accent: "#ffd23f",
         });
         cubes.push({
+          label: "Feedback",
+          shortLabel: "FB",
+          href: "/admin/feedback",
+          accent: "#ff6b35",
+        });
+        cubes.push({
           label: "Settings",
           shortLabel: "ST",
           href: "/admin",
@@ -206,18 +213,18 @@ export function Nvbar() {
   const currentShortLabel = currentNav?.shortLabel ?? "NAV";
 
   const navButtonClassName = `flex h-14 w-14 items-center justify-center border-[3px] text-xs font-black uppercase tracking-[0.22em] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 sm:h-15 sm:w-15 ${isLightMode
-      ? "border-black bg-white text-black shadow-[6px_6px_0_#000]"
-      : "border-white/50 bg-black/80 text-white shadow-[6px_6px_0_rgba(255,255,255,0.15)] hover:border-white/70 hover:bg-black/90"
+    ? "border-black bg-white text-black shadow-[6px_6px_0_#000]"
+    : "border-white/50 bg-black/80 text-white shadow-[6px_6px_0_rgba(255,255,255,0.15)] hover:border-white/70 hover:bg-black/90"
     }`;
 
   const mobileTriggerClassName = `nav-trigger-btn pointer-events-auto flex h-14 w-14 items-center justify-center border-[3px] text-xs font-black uppercase tracking-[0.22em] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 sm:hidden ${isLightMode
-      ? "border-black bg-white text-black shadow-[6px_6px_0_#000]"
-      : "border-white/50 bg-black/80 text-white shadow-[6px_6px_0_rgba(255,255,255,0.15)] hover:border-white/70 hover:bg-black/90"
+    ? "border-black bg-white text-black shadow-[6px_6px_0_#000]"
+    : "border-white/50 bg-black/80 text-white shadow-[6px_6px_0_rgba(255,255,255,0.15)] hover:border-white/70 hover:bg-black/90"
     }`;
 
   const themeButtonClassName = `flex h-14 w-14 sm:h-15 sm:w-15 items-center justify-center border-[3px] text-xs font-black uppercase tracking-[0.22em] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 ${isLightMode
-      ? "border-black bg-white text-black shadow-[6px_6px_0_#000] hover:bg-slate-100"
-      : "border-white/50 bg-black/80 text-white shadow-[6px_6px_0_rgba(255,255,255,0.15)] hover:border-white/70 hover:bg-black/90"
+    ? "border-black bg-white text-black shadow-[6px_6px_0_#000] hover:bg-slate-100"
+    : "border-white/50 bg-black/80 text-white shadow-[6px_6px_0_rgba(255,255,255,0.15)] hover:border-white/70 hover:bg-black/90"
     }`;
 
   // Determine if we should show the simplified portal layout
@@ -235,8 +242,8 @@ export function Nvbar() {
     <>
       <aside
         className={`fixed z-50 transition-all duration-500 ${isPortal
-            ? "bottom-8 left-1/2 -translate-x-1/2 w-auto"
-            : "bottom-4 right-4 sm:bottom-auto sm:right-5 sm:top-1/2 sm:-translate-y-1/2 xl:right-7"
+          ? "bottom-8 left-1/2 -translate-x-1/2 w-auto"
+          : "bottom-4 right-4 sm:bottom-auto sm:right-5 sm:top-1/2 sm:-translate-y-1/2 xl:right-7"
           }`}
         style={{
           paddingBottom: "env(safe-area-inset-bottom)",
@@ -267,12 +274,12 @@ export function Nvbar() {
                     aria-label={item.label}
                     onClick={handleClick}
                     className={`group relative flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center border-2 sm:border-[3px] transition-all duration-300 hover:-translate-y-1 rounded-sm sm:rounded-none ${isActive
-                        ? isLightMode
-                          ? "border-black scale-105 sm:scale-110 z-10"
-                          : "border-white scale-105 sm:scale-110 z-10"
-                        : isLightMode
-                          ? "border-black/10 bg-black/5 hover:border-black/30"
-                          : "border-white/20 bg-white/10 hover:border-white/40"
+                      ? isLightMode
+                        ? "border-black scale-105 sm:scale-110 z-10"
+                        : "border-white scale-105 sm:scale-110 z-10"
+                      : isLightMode
+                        ? "border-black/10 bg-black/5 hover:border-black/30"
+                        : "border-white/20 bg-white/10 hover:border-white/40"
                       }`}
                     style={
                       isActive
@@ -286,10 +293,10 @@ export function Nvbar() {
                   >
                     <span
                       className={`navbar-font text-sm leading-none font-black ${isActive
-                          ? "text-black"
-                          : isLightMode
-                            ? "text-black/60"
-                            : "text-white/80"
+                        ? "text-black"
+                        : isLightMode
+                          ? "text-black/60"
+                          : "text-white/80"
                         }`}
                     >
                       {item.shortLabel}
@@ -329,8 +336,8 @@ export function Nvbar() {
               <button
                 onClick={toggleTheme}
                 className={`flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center border-2 sm:border-[3px] transition-all active:scale-95 hover:-translate-y-1 rounded-sm sm:rounded-none ${isLightMode
-                    ? "border-black bg-black text-white shadow-[inset_0_0_10px_rgba(255,255,255,0.2)] hover:bg-slate-900"
-                    : "border-white bg-white text-black shadow-[inset_0_0_10px_rgba(0,0,0,0.1)] hover:bg-slate-100"
+                  ? "border-black bg-black text-white shadow-[inset_0_0_10px_rgba(255,255,255,0.2)] hover:bg-slate-900"
+                  : "border-white bg-white text-black shadow-[inset_0_0_10px_rgba(0,0,0,0.1)] hover:bg-slate-100"
                   }`}
               >
                 {isLightMode ? (
@@ -504,8 +511,8 @@ export function Nvbar() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-md bg-black/40 animate-in fade-in duration-300">
           <div
             className={`relative w-full max-w-md border-[4px] p-8 shadow-[12px_12px_0_#000] sm:p-10 ${isLightMode
-                ? "bg-white border-black"
-                : "bg-zinc-900 border-white text-white"
+              ? "bg-white border-black"
+              : "bg-zinc-900 border-white text-white"
               }`}
           >
             <button
@@ -531,8 +538,8 @@ export function Nvbar() {
               <button
                 onClick={() => setShowLockModal(false)}
                 className={`w-full border-[4px] py-4 text-xl font-black uppercase tracking-widest transition-all active:translate-y-1 active:shadow-none ${isLightMode
-                    ? "border-black bg-black text-white shadow-[8px_8px_0_#c0ff00] hover:bg-zinc-800"
-                    : "border-white bg-white text-black shadow-[8px_8px_0_#c0ff00] hover:bg-zinc-200"
+                  ? "border-black bg-black text-white shadow-[8px_8px_0_#c0ff00] hover:bg-zinc-800"
+                  : "border-white bg-white text-black shadow-[8px_8px_0_#c0ff00] hover:bg-zinc-200"
                   }`}
               >
                 GOT IT
