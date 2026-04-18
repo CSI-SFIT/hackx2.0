@@ -37,7 +37,7 @@ export default function SubmitPage() {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [description, setDescription] = useState("");
   const [existingImages, setExistingImages] = useState<string[]>([]);
-  const [newImages, setNewImages] = useState<File[]>([]);
+  const [newImages, setNewImages] = useState<string[]>([]);
   const [isExisting, setIsExisting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingProject, setIsLoadingProject] = useState(true);
@@ -156,11 +156,15 @@ export default function SubmitPage() {
     }
   }, [isAdmin, activeTab, loadAllProjects]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const files = Array.from(e.target.files);
-      setNewImages((prev) => [...prev, ...files]);
-    }
+  const handleImageChange = (urls: string[]) => {
+    setNewImages((prev) => {
+      const total = prev.length + existingImages.length + urls.length;
+      if (total > 4) {
+        // Filter out extras if somehow we exceed limit
+        return [...prev, ...urls].slice(0, 4 - existingImages.length);
+      }
+      return [...prev, ...urls];
+    });
   };
 
   const removeNewImage = (index: number) => {
@@ -185,40 +189,20 @@ export default function SubmitPage() {
       return;
     }
 
+    // Check image limit
+    const totalImages = existingImages.length + newImages.length;
+    if (totalImages > 4) {
+      toast.error("Maximum 4 images allowed");
+      return;
+    }
+
     if (!profile || !user) return;
 
     setIsSaving(true);
 
     try {
-      // Upload new images
-      const uploadedUrls: string[] = [];
-      for (const file of newImages) {
-        const ext = file.name.split(".").pop();
-        const fileName =
-          profile.team_name +
-          "-" +
-          Date.now() +
-          "-" +
-          Math.random().toString(36).slice(2) +
-          "." +
-          ext;
-        const { data, error } = await supabase.storage
-          .from("project-images")
-          .upload(fileName, file);
-
-        if (error) {
-          console.error("Upload error:", error);
-          toast.error(`Failed to upload ${file.name}`);
-          continue;
-        }
-
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from("project-images").getPublicUrl(data.path);
-        uploadedUrls.push(publicUrl);
-      }
-
-      const allImages = [...existingImages, ...uploadedUrls];
+      // Combine all image URLs (existing + newly uploaded)
+      const allImages = [...existingImages, ...newImages];
 
       const projectData = {
         team_name: profile.team_name,
@@ -394,8 +378,8 @@ export default function SubmitPage() {
             existingImages={existingImages}
             onRemoveExistingImage={removeExistingImage}
             newImages={newImages}
+            onAddNewImages={handleImageChange}
             onRemoveNewImage={removeNewImage}
-            onImageChange={handleImageChange}
             onSubmit={handleSubmit}
             isSaving={isSaving}
             isExisting={isExisting}

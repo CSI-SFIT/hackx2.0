@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
+    "@uploadthing/react": "^7.3.3",
     "animejs": "^4.3.6",
     "clsx": "^2.1.1",
     "framer-motion": "^12.35.1",
@@ -22,7 +23,10 @@
     "qrcode.react": "^4.2.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "sonner": "^2.0.7"
+    "recharts": "^3.8.1",
+    "sonner": "^2.0.7",
+    "swr": "^2.4.1",
+    "uploadthing": "^7.7.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

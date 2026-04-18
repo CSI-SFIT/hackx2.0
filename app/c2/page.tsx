@@ -58,8 +58,8 @@ function FloatingBadge({
   return (
     <div
       className={`absolute z-20 flex items-center justify-center p-3 transition-all duration-500 ${isLightMode
-          ? "border-[3px] border-black bg-white/80 shadow-[6px_6px_0_#000]"
-          : "border-[3px] border-white/50 bg-[#111]/80 shadow-[6px_6px_0_#c0ff00]"
+        ? "border-[3px] border-black bg-white/80 shadow-[6px_6px_0_#000]"
+        : "border-[3px] border-white/50 bg-[#111]/80 shadow-[6px_6px_0_#c0ff00]"
         } ${styleName}`}
       style={{
         animation: `${floatRev ? "float-reverse" : "float"} 6s ease-in-out infinite`,
@@ -89,8 +89,8 @@ function HighlightCard({
   return (
     <div
       className={`cursor-target group relative flex flex-col p-8 transition-transform duration-500 hover:-translate-y-2 ${isLightMode
-          ? "border-[3px] border-black bg-white shadow-[8px_8px_0_#000]"
-          : "border-[3px] border-white/30 bg-[#0a0a0a] shadow-[8px_8px_0_#fff]"
+        ? "border-[3px] border-black bg-white shadow-[8px_8px_0_#000]"
+        : "border-[3px] border-white/30 bg-[#0a0a0a] shadow-[8px_8px_0_#fff]"
         }`}
       style={{
         animation: `float-reverse 8s ease-in-out infinite`,
@@ -150,8 +150,8 @@ function CountdownItem({
 export default function Home() {
   const { isLightMode, setWaveTilesOpacity } = useTheme();
 
-  // Hackathon countdown - April 17th, 2026 (memoized to prevent re-creation)
-  const hackathonDate = useMemo(() => new Date('2026-04-17T00:00:00+05:30'), []); // IST
+  // Hackathon countdown - April 17th, 2026 at 11:00 PM (memoized)
+  const hackathonDate = useMemo(() => new Date('2026-04-17T23:00:00+05:30'), []); // IST
   const countdown = useCountdown(hackathonDate);
 
   useEffect(
@@ -375,8 +375,8 @@ export default function Home() {
             <div className="mt-40 pt-10 pb-10 text-left w-full mx-auto relative z-20 pointer-events-auto cursor-target group">
               <div
                 className={`p-10 sm:p-16 border-[3px] transition-transform duration-500 hover:-translate-y-2 hover:shadow-[12px_12px_0_#00f0ff] ${isLightMode
-                    ? "border-black bg-white shadow-[12px_12px_0_#000]"
-                    : "border-white/30 bg-[#111] shadow-[12px_12px_0_#fff]"
+                  ? "border-black bg-white shadow-[12px_12px_0_#000]"
+                  : "border-white/30 bg-[#111] shadow-[12px_12px_0_#fff]"
                   }`}
               >
                 <h2
@@ -433,8 +433,8 @@ export default function Home() {
                   <div
                     key={i}
                     className={`cursor-target group relative flex flex-col items-center justify-center p-8 transition-transform duration-500 hover:-translate-y-2 ${isLightMode
-                        ? "border-[3px] border-black bg-white shadow-[6px_6px_0_#000]"
-                        : "border-[3px] border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
+                      ? "border-[3px] border-black bg-white shadow-[6px_6px_0_#000]"
+                      : "border-[3px] border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
                       }`}
                   >
                     <div
@@ -494,14 +494,14 @@ export default function Home() {
                   <div
                     key={idx}
                     className={`cursor-target flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6 border-[3px] transition-transform duration-300 hover:-translate-y-1 ${isLightMode
-                        ? "border-black bg-white shadow-[4px_4px_0_#000] hover:shadow-[8px_8px_0_#000]"
-                        : "border-white/30 bg-[#111] shadow-[4px_4px_0_#fff] hover:shadow-[8px_8px_0_#ff00a0]"
+                      ? "border-black bg-white shadow-[4px_4px_0_#000] hover:shadow-[8px_8px_0_#000]"
+                      : "border-white/30 bg-[#111] shadow-[4px_4px_0_#fff] hover:shadow-[8px_8px_0_#ff00a0]"
                       }`}
                   >
                     <div
                       className={`px-4 py-2 font-black uppercase tracking-wider whitespace-nowrap text-sm border-[3px] ${isLightMode
-                          ? "border-black bg-[#ff00a0] text-white"
-                          : "border-white bg-[#ff00a0] text-white"
+                        ? "border-black bg-[#ff00a0] text-white"
+                        : "border-white bg-[#ff00a0] text-white"
                         }`}
                     >
                       {item.date}
@@ -541,8 +541,8 @@ export default function Home() {
                   <div
                     key={i}
                     className={`cursor-target w-40 h-24 sm:w-56 sm:h-32 flex items-center justify-center border-[3px] transition-transform hover:scale-105 duration-300 ${isLightMode
-                        ? "border-black bg-white shadow-[6px_6px_0_#000]"
-                        : "border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
+                      ? "border-black bg-white shadow-[6px_6px_0_#000]"
+                      : "border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
                       }`}
                   >
                     <span
@@ -589,8 +589,8 @@ export default function Home() {
                   <details
                     key={i}
                     className={`cursor-target group border-[3px] [&_summary::-webkit-details-marker]:hidden ${isLightMode
-                        ? "border-black bg-white shadow-[4px_4px_0_#000]"
-                        : "border-white/30 bg-[#111] shadow-[4px_4px_0_#fff]"
+                      ? "border-black bg-white shadow-[4px_4px_0_#000]"
+                      : "border-white/30 bg-[#111] shadow-[4px_4px_0_#fff]"
                       }`}
                   >
                     <summary

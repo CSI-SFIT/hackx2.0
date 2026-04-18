@@ -105,11 +105,10 @@ function FloatingBadge({
 }) {
   return (
     <div
-      className={`absolute z-20 flex items-center justify-center p-3 transition-all duration-500 ${
-        isLightMode
+      className={`absolute z-20 flex items-center justify-center p-3 transition-all duration-500 ${isLightMode
           ? "border-[3px] border-black bg-white/80 shadow-[6px_6px_0_#000]"
           : "border-[3px] border-white/50 bg-[#111]/80 shadow-[6px_6px_0_#c0ff00]"
-      } ${styleName}`}
+        } ${styleName}`}
       style={{
         animation: `${floatRev ? "float-reverse" : "float"} 6s ease-in-out infinite`,
         animationDelay: `${delay}s`,
@@ -137,11 +136,10 @@ function HighlightCard({
 }) {
   return (
     <div
-      className={`cursor-target group relative flex flex-col p-6 sm:p-8 transition-transform duration-500 hover:-translate-y-2 ${
-        isLightMode
+      className={`cursor-target group relative flex flex-col p-6 sm:p-8 transition-transform duration-500 hover:-translate-y-2 ${isLightMode
           ? "border-[3px] border-black bg-white shadow-[8px_8px_0_#000]"
           : "border-[3px] border-white/30 bg-[#0a0a0a] shadow-[8px_8px_0_#fff]"
-      }`}
+        }`}
       style={{
         animation: `float-reverse 8s ease-in-out infinite`,
         animationDelay: `${delay}s`,
@@ -295,9 +293,9 @@ export default function Home() {
   const [preloaderComplete, setPreloaderComplete] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Hackathon countdown - April 17th, 2026 (memoized to prevent re-creation)
+  // Hackathon countdown - April 17th, 2026 at 11:00 PM (memoized)
   const hackathonDate = useMemo(
-    () => new Date("2026-04-17T00:00:00+05:30"),
+    () => new Date("2026-04-17T23:00:00+05:30"),
     [],
   ); // IST
   const countdown = useCountdown(hackathonDate);
@@ -427,7 +425,7 @@ export default function Home() {
             className={isLightMode ? "opacity-40" : "opacity-30"}
             optimizeForPerformance
             forceTheme={isLightMode}
-            onModeChange={() => {}}
+            onModeChange={() => { }}
           />
         </div>
       )}
@@ -783,11 +781,10 @@ export default function Home() {
                       ].map((prize, idx) => (
                         <div
                           key={idx}
-                          className={`cursor-target p-6 sm:p-8 flex flex-col items-center justify-center border-[3px] transition-transform hover:-translate-y-2 duration-300 ${
-                            isLightMode
+                          className={`cursor-target p-6 sm:p-8 flex flex-col items-center justify-center border-[3px] transition-transform hover:-translate-y-2 duration-300 ${isLightMode
                               ? "border-black bg-white shadow-[8px_8px_0_#000]"
                               : "border-white/30 bg-[#111] shadow-[8px_8px_0_#fff]"
-                          }`}
+                            }`}
                         >
                           <span className="text-[11px] sm:text-sm font-black uppercase tracking-widest text-gray-500 mb-2 text-center leading-tight">
                             {prize.domain}
@@ -866,11 +863,10 @@ export default function Home() {
                       ].map((track, i) => (
                         <div
                           key={i}
-                          className={`cursor-target group relative flex flex-col items-center justify-center p-6 sm:p-8 transition-transform duration-500 hover:-translate-y-2 ${
-                            isLightMode
+                          className={`cursor-target group relative flex flex-col items-center justify-center p-6 sm:p-8 transition-transform duration-500 hover:-translate-y-2 ${isLightMode
                               ? "border-[3px] border-black bg-white shadow-[6px_6px_0_#000]"
                               : "border-[3px] border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
-                          }`}
+                            }`}
                         >
                           <div
                             className="absolute inset-0 z-0 origin-bottom scale-y-0 transition-transform duration-300 ease-out group-hover:scale-y-100"
@@ -882,9 +878,8 @@ export default function Home() {
                             {track.icon}
                           </div>
                           <h3
-                            className={`relative z-10 text-base sm:text-lg font-black uppercase tracking-widest text-center transition-colors duration-300 ${
-                              isLightMode ? "text-black" : "text-white"
-                            } group-hover:text-black`}
+                            className={`relative z-10 text-base sm:text-lg font-black uppercase tracking-widest text-center transition-colors duration-300 ${isLightMode ? "text-black" : "text-white"
+                              } group-hover:text-black`}
                           >
                             {track.name}
                           </h3>

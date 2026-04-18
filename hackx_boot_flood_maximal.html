@@ -1,0 +1,424 @@
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background: #000;
+    color: #00ff41;
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    padding-top: 120px;
+  }
+
+  #hackx-root {
+    background: #000;
+    color: #00ff41;
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    min-height: 520px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    padding: 2rem;
+  }
+
+  #scanline {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(0, 255, 65, 0.1);
+    animation: scan 2s linear infinite;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  @keyframes scan {
+    from {
+      top: 0
+    }
+
+    to {
+      top: 100%
+    }
+  }
+
+  #press-enter-screen {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  #ascii-logo {
+    font-size: clamp(7px, 1.4vw, 18px);
+    line-height: 1.2;
+    color: #00ff41;
+    white-space: pre;
+    text-shadow: 0 0 10px #00ff41;
+  }
+
+  #tagline {
+    font-size: 12px;
+    color: #00aa2b;
+    letter-spacing: 4px;
+  }
+
+  #press-hint {
+    font-size: 14px;
+    color: #00ff41;
+    letter-spacing: 2px;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+
+    0%,
+    100% {
+      opacity: 1
+    }
+
+    50% {
+      opacity: 0
+    }
+  }
+
+  #flood-screen {
+    display: none;
+    width: 100%;
+    height: 520px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #code-flood {
+    font-size: 9.5px;
+    line-height: 1.38;
+    color: #00cc35;
+    word-break: break-all;
+    white-space: pre-wrap;
+    width: min(100%, 980px);
+    height: 100%;
+    overflow: hidden;
+    margin: 0 auto;
+    padding-top: 20px;
+    transform: translateX(clamp(-80px, -4vw, -24px));
+  }
+
+  #initiated-screen {
+    display: none;
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    animation: fadeIn 0.4s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95)
+    }
+
+    to {
+      opacity: 1;
+      transform: scale(1)
+    }
+  }
+
+  #big-text {
+    font-size: clamp(20px, 4.5vw, 42px);
+    color: #00ff41;
+    text-shadow: 0 0 20px #00ff41, 0 0 60px #00ff41;
+    letter-spacing: 8px;
+    white-space: nowrap;
+  }
+
+  #sub-text {
+    font-size: 12px;
+    color: #00aa2b;
+    letter-spacing: 4px;
+  }
+
+  #progress-bar-wrap {
+    width: 340px;
+    height: 3px;
+    background: #001a07;
+    border: 1px solid #00ff41;
+  }
+
+  #progress-bar-fill {
+    height: 100%;
+    background: #00ff41;
+    box-shadow: 0 0 8px #00ff41;
+    width: 0%;
+    transition: width 0.02s linear;
+  }
+
+  #switch-btn {
+    margin-top: 0.5rem;
+    padding: 10px 32px;
+    background: transparent;
+    border: 1px solid #00ff41;
+    color: #00ff41;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    display: none;
+    animation: blink 1.2s step-end infinite;
+  }
+
+  #switch-btn:hover {
+    background: #00ff41;
+    color: #000;
+    animation: none;
+  }
+
+  #restart-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 14px;
+    background: transparent;
+    border: 1px solid #002a0e;
+    color: #002a0e;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+
+  #restart-btn:hover {
+    border-color: #00ff41;
+    color: #00ff41;
+  }
+</style>
+
+<div id="hackx-root">
+  <div id="scanline"></div>
+  <div id="press-enter-screen">
+    <pre id="ascii-logo">
+ ██╗  ██╗ █████╗  ██████╗██╗  ██╗██╗  ██╗   ██████║      ████████║
+ ██║  ██║██╔══██╗██╔════╝██║ ██╔╝╚██╗██╔╝       ██║      ██║   ██║
+ ███████║███████║██║     █████╔╝  ╚███╔╝    ██████║      ██║   ██║
+ ██╔══██║██╔══██║██║     ██╔═██╗  ██╔██╗    ██║          ██║   ██║
+ ██║  ██║██║  ██║╚██████╗██║  ██╗██╔╝ ██╗   ██████║  ██║ ████████║
+ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═════╝  ╚═╝ ╚═══════╝</pre>
+    <div id="tagline">— 2.0 — GENAÏ MARKETING PLATFORM —</div>
+    <div id="press-hint">[ PRESS ENTER TO INITIALIZE ]</div>
+  </div>
+  <div id="flood-screen">
+    <div id="code-flood"></div>
+  </div>
+  <div id="initiated-screen">
+    <pre id="ascii-logo">
+ ██╗  ██╗ █████╗  ██████╗██╗  ██╗██╗  ██╗   ██████║      ████████║
+ ██║  ██║██╔══██╗██╔════╝██║ ██╔╝╚██╗██╔╝       ██║      ██║   ██║
+ ███████║███████║██║     █████╔╝  ╚███╔╝    ██████║      ██║   ██║
+ ██╔══██║██╔══██║██║     ██╔═██╗  ██╔██╗    ██║          ██║   ██║
+ ██║  ██║██║  ██║╚██████╗██║  ██╗██╔╝ ██╗   ██████║  ██║ ████████║
+ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═════╝  ╚═╝ ╚═══════╝</pre>
+    <div id="sub-text">SYSTEM INITIALIZED</div>
+    <div id="progress-bar-wrap">
+      <div id="progress-bar-fill"></div>
+    </div>
+    <div id="switch-btn" onclick="alert('▶ Switch to your video NOW!')">▶ LAUNCH PRESENTATION</div>
+  </div>
+  <button id="restart-btn" onclick="restart()">↺ restart</button>
+</div>
+
+<script>
+  const pressScreen = document.getElementById('press-enter-screen');
+  const floodScreen = document.getElementById('flood-screen');
+  const initiatedScreen = document.getElementById('initiated-screen');
+  const codeFlood = document.getElementById('code-flood');
+  const progressFill = document.getElementById('progress-bar-fill');
+  const switchBtn = document.getElementById('switch-btn');
+  let phase = 'waiting';
+  let floodInterval = null;
+
+  const H = '0123456789ABCDEF';
+  const rh = n => Array.from({ length: n }, () => H[Math.floor(Math.random() * 16)]).join('');
+  const rb = n => Array.from({ length: n }, () => Math.random() > .5 ? '1' : '0').join('');
+  const ra = () => '0x' + rh(8);
+  const ri = (a, b) => Math.floor(Math.random() * (b - a)) + a;
+  const rp = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  const modules = ['KERNEL', 'NET', 'FS', 'GPU', 'MEM', 'CPU', 'IO', 'DMA', 'IRQ', 'CACHE', 'BUS', 'MMU', 'TLB', 'ALU', 'FPU', 'VPU', 'DPU', 'TPU', 'NPU', 'SPU'];
+  const statuses = ['OK', 'OK', 'OK', 'OK', 'PASS', 'PASS', 'READY', 'ONLINE', 'NOMINAL', 'WARN', 'LOADED', 'ACTIVE', 'BOOT'];
+  const ops = ['EXEC', 'LOAD', 'WRITE', 'READ', 'ALLOC', 'FREE', 'PUSH', 'POP', 'CALL', 'JMP', 'MOV', 'XOR', 'AND', 'OR', 'SHL', 'SHR', 'MUL', 'ADD', 'SUB', 'CMP', 'TEST', 'LEA', 'NOP'];
+  const protocols = ['TCP', 'UDP', 'HTTP', 'HTTPS', 'WS', 'RPC', 'IPC', 'SPI', 'I2C', 'UART', 'DMA', 'PCIe', 'USB', 'SATA', 'NVMe'];
+
+  const realLines = [
+    '>> HACKX 2.0 BOOT SEQUENCE INITIATED ─────────────────',
+    '>> BUILD: PS1-v2.0.0 | SHA: 4f2a1c9d | ' + new Date().toISOString(),
+    '>> ENVIRONMENT: PRODUCTION | MODE: HACKATHON',
+    '   ',
+    'PHASE 1/5 ── CORE INFRASTRUCTURE ───────────────────────',
+    'FastAPI backend binding :8000................. [OK]',
+    'ASGI server (uvicorn) workers x4............. [OK]',
+    'Redis pub/sub broker......................... [OK]',
+    'Redis stream partitions x8................... [OK]',
+    'Supabase PostgreSQL pool..................... [OK]',
+    'Supabase vector store (pgvector)............. [OK]',
+    'Supabase realtime subscriptions.............. [OK]',
+    'Next.js 14 App Router........................ [OK]',
+    'Edge runtime CDN nodes...................... [ACTIVE]',
+    '   ',
+    'PHASE 2/5 ── LANGGRAPH ORCHESTRATOR ─────────────────────',
+    'LangGraph StateGraph compiling............... [OK]',
+    'schemas/state.py AgentState.................. [LOADED]',
+    'Inter-agent handoff contracts................ [PASS]',
+    'Checkpointing backend (Redis)................ [OK]',
+    'Retry policies loaded........................ [OK]',
+    'Timeout watchdogs registered................. [OK]',
+    '   ',
+    'PHASE 3/5 ── AGENT PIPELINE (10/10) ─────────────────────',
+    'Agent[0] MarketIntelligence  ──  LLM + WebSearch... [READY]',
+    'Agent[1] BrandPersona        ──  LLM + VectorDB.... [READY]',
+    'Agent[2] CreativeDirection   ──  LLM + ImageGen.... [READY]',
+    'Agent[3] ContentWriter       ──  LLM + RAG......... [READY]',
+    'Agent[4] VideoConcept        ──  LLM + Storyboard.. [READY]',
+    'Agent[5] Localization        ──  LLM + i18n........ [READY]',
+    'Agent[6] CriticConsistency   ──  LLM + Eval........ [READY]',
+    'Agent[7] SEOOptimizer        ──  LLM + Analytics... [READY]',
+    'Agent[8] MemoryManager       ──  VectorDB + Cache.. [READY]',
+    'Agent[9] DeterministicEngine ──  Rules + Logic..... [READY]',
+    'Pipeline topology verified................... [PASS]',
+    'Parallel execution graph compiled............ [OK]',
+    '   ',
+    'PHASE 4/5 ── DETERMINISTIC ENGINES ──────────────────────',
+    'engines/budget_allocator.py.................. [OK]',
+    'engines/persona_scorer.py.................... [OK]',
+    'engines/content_validator.py................. [OK]',
+    'engines/seo_ranker.py........................ [OK]',
+    'engines/localization_mapper.py............... [OK]',
+    'Zero-LLM deterministic paths verified........ [PASS]',
+    '   ',
+    'PHASE 5/5 ── FRONTEND & DEMO LAYER ──────────────────────',
+    'RefinementDiffView component................. [MOUNTED]',
+    'AdminDashboard layout........................ [READY]',
+    'CampaignTimeline renderer.................... [READY]',
+    'AgentStatusMonitor websocket................. [LIVE]',
+    'Multi-modal asset previewer.................. [READY]',
+    '   ',
+    '>> INTEGRITY CHECK........ PASS',
+    '>> MEMORY PRESSURE........ NOMINAL',
+    '>> LATENCY P99............ 42ms',
+    '>> ALL 10 AGENTS NOMINAL. PIPELINE HOT.',
+    '   ',
+    '█████████████████████████████████████████████████████████',
+    '█                                                       █',
+    '█          PS1 PLATFORM  ──  HACKX 2.0 EDITION         █',
+    '█                INITIALIZATION COMPLETE                █',
+    '█                                                       █',
+    '█████████████████████████████████████████████████████████',
+  ];
+
+  function noiseLine() {
+    const r = Math.random();
+    if (r < 0.22) return ra() + '  ' + rh(32) + '  ' + rh(8) + '  ' + rh(8);
+    if (r < 0.40) return rb(72);
+    if (r < 0.54) return rh(88);
+    if (r < 0.65) {
+      const op = rp(ops);
+      return op.padEnd(6) + ' ' + ra() + ' -> ' + ra() + '  flags:' + rh(2) + '  cyc:' + ri(1, 999);
+    }
+    if (r < 0.74) {
+      const mod = rp(modules);
+      const st = rp(statuses);
+      return 'SYS::' + mod.padEnd(8) + ' [' + rh(4) + '] seg:' + ra() + ' len:' + ri(1, 4096) + ' → ' + st;
+    }
+    if (r < 0.82) {
+      const proto = rp(protocols);
+      return proto.padEnd(6) + ' port:' + ri(1024, 65535) + ' seq:' + rh(8) + ' ack:' + rh(8) + ' win:' + ri(1, 65535);
+    }
+    if (r < 0.89) {
+      return 'IRQ[' + ri(0, 255) + '] vec:' + rh(2) + ' cpu:' + ri(0, 7) + ' lat:' + ri(1, 999) + 'ns handler:' + ra();
+    }
+    return 'DMA[' + ri(0, 15) + '] src:' + ra() + ' dst:' + ra() + ' len:' + ri(64, 65536) + ' burst:' + ri(1, 16) + ' → DONE';
+  }
+
+  function startFlood() {
+    if (phase !== 'waiting') return;
+    phase = 'flooding';
+    pressScreen.style.display = 'none';
+    floodScreen.style.display = 'flex';
+    document.removeEventListener('keydown', handleKey);
+
+    const buffer = [];
+    const maxVisible = 120;
+    let totalTicks = 0;
+    let realIdx = 0;
+
+    // Spread real lines across ~600 ticks (600 * 30ms = ~18 seconds)
+    const totalTicks_target = 600;
+    const realPositions = [];
+    const spacing = Math.floor(totalTicks_target / realLines.length);
+    for (let i = 0; i < realLines.length; i++) {
+      realPositions.push(spacing * i + ri(0, Math.floor(spacing * 0.4)));
+    }
+
+    floodInterval = setInterval(() => {
+      const batch = ri(4, 8);
+      for (let b = 0; b < batch; b++) {
+        if (realIdx < realLines.length && totalTicks >= realPositions[realIdx]) {
+          buffer.push(realLines[realIdx++]);
+        } else {
+          buffer.push(noiseLine());
+        }
+        totalTicks++;
+      }
+
+      if (buffer.length > maxVisible) buffer.splice(0, buffer.length - maxVisible);
+      codeFlood.textContent = buffer.join('\n');
+
+      if (realIdx >= realLines.length && totalTicks > realPositions[realPositions.length - 1] + 40) {
+        clearInterval(floodInterval);
+        setTimeout(showInitiated, 300);
+      }
+    }, 30);
+  }
+
+  function showInitiated() {
+    floodScreen.style.display = 'none';
+    initiatedScreen.style.display = 'flex';
+    phase = 'done';
+    let pct = 0;
+    const bar = setInterval(() => {
+      pct += 2;
+      progressFill.style.width = pct + '%';
+      if (pct >= 100) { clearInterval(bar); switchBtn.style.display = 'block'; }
+    }, 18);
+  }
+
+  function handleKey(e) { if (e.key === 'Enter') startFlood(); }
+
+  function restart() {
+    if (floodInterval) clearInterval(floodInterval);
+    phase = 'waiting';
+    pressScreen.style.display = 'flex';
+    floodScreen.style.display = 'none';
+    initiatedScreen.style.display = 'none';
+    codeFlood.textContent = '';
+    progressFill.style.width = '0%';
+    switchBtn.style.display = 'none';
+    document.addEventListener('keydown', handleKey);
+  }
+
+  document.addEventListener('keydown', handleKey);
+  document.getElementById('hackx-root').addEventListener('click', () => { if (phase === 'waiting') startFlood(); });
+</script>

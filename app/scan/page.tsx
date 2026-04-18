@@ -19,6 +19,20 @@ type ScanLog = {
   participant_team?: string;
 };
 
+type RegistrationStats = {
+  totalParticipants: number;
+  registeredCount: number;
+  remainingCount: number;
+};
+
+type RemainingParticipant = {
+  user_id: string;
+  name: string;
+  team_name: string;
+  email: string;
+  phone: string | null;
+};
+
 export default function ScanPage() {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
   const { isLightMode } = useTheme();
@@ -27,6 +41,13 @@ export default function ScanPage() {
   const [scanMode, setScanMode] = useState<"food" | "registration">("registration");
   const [selectedMeal, setSelectedMeal] = useState("day1_lunch");
   const [recentScans, setRecentScans] = useState<ScanLog[]>([]);
+  const [registrationStats, setRegistrationStats] = useState<RegistrationStats>({
+    totalParticipants: 0,
+    registeredCount: 0,
+    remainingCount: 0,
+  });
+  const [remainingParticipants, setRemainingParticipants] = useState<RemainingParticipant[]>([]);
+  const [remainingLoading, setRemainingLoading] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scannerReady, setScannerReady] = useState(false);
   const scannerRef = useRef<HTMLDivElement>(null);
@@ -34,6 +55,70 @@ export default function ScanPage() {
     null,
   );
   const processingRef = useRef(false);
+
+  const loadRegistrationStats = useCallback(async () => {
+    const [profilesResult, registrationResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("user_id", { count: "exact", head: true })
+        .neq("role", "admin"),
+      supabase
+        .from("registration_logs")
+        .select("user_id", { count: "exact", head: true }),
+    ]);
+
+    if (profilesResult.error || registrationResult.error) {
+      console.error("Failed to load registration stats", {
+        profilesError: profilesResult.error,
+        registrationError: registrationResult.error,
+      });
+      return;
+    }
+
+    const totalParticipants = profilesResult.count;
+    const registeredCount = registrationResult.count;
+
+    const total = totalParticipants ?? 0;
+    const registered = Math.min(registeredCount ?? 0, total);
+
+    setRegistrationStats({
+      totalParticipants: total,
+      registeredCount: registered,
+      remainingCount: Math.max(total - registered, 0),
+    });
+  }, [supabase]);
+
+  const loadRemainingParticipants = useCallback(async () => {
+    setRemainingLoading(true);
+
+    const [profilesResult, registrationResult] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("user_id, name, team_name, email, phone")
+        .neq("role", "admin"),
+      supabase
+        .from("registration_logs")
+        .select("user_id"),
+    ]);
+
+    if (profilesResult.error || registrationResult.error) {
+      console.error("Failed to load remaining participants", {
+        profilesError: profilesResult.error,
+        registrationError: registrationResult.error,
+      });
+      setRemainingLoading(false);
+      return;
+    }
+
+    const checkedInUserIds = new Set((registrationResult.data || []).map((entry) => entry.user_id));
+
+    const remaining = (profilesResult.data || [])
+      .filter((profile) => !checkedInUserIds.has(profile.user_id))
+      .sort((a, b) => a.team_name.localeCompare(b.team_name) || a.name.localeCompare(b.name));
+
+    setRemainingParticipants(remaining);
+    setRemainingLoading(false);
+  }, [supabase]);
 
   // Load recent scans
   const loadRecentScans = useCallback(async () => {
@@ -93,8 +178,11 @@ export default function ScanPage() {
   }, [supabase, scanMode]);
 
   useEffect(() => {
-    if (isAdmin) loadRecentScans();
-  }, [isAdmin, loadRecentScans]);
+    if (!isAdmin) return;
+    loadRecentScans();
+    loadRegistrationStats();
+    loadRemainingParticipants();
+  }, [isAdmin, loadRecentScans, loadRegistrationStats, loadRemainingParticipants]);
 
   // Setup realtime subscription
   useEffect(() => {
@@ -104,9 +192,13 @@ export default function ScanPage() {
       .channel(`${tableName}_realtime`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: tableName },
+        { event: "*", schema: "public", table: tableName },
         () => {
           loadRecentScans();
+          if (tableName === "registration_logs") {
+            loadRegistrationStats();
+            loadRemainingParticipants();
+          }
         },
       )
       .subscribe();
@@ -114,7 +206,49 @@ export default function ScanPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isAdmin, supabase, loadRecentScans, scanMode]);
+  }, [isAdmin, supabase, loadRecentScans, loadRegistrationStats, loadRemainingParticipants, scanMode]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const channel = supabase
+      .channel("registration_stats_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "registration_logs" },
+        () => {
+          loadRegistrationStats();
+          loadRemainingParticipants();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => {
+          loadRegistrationStats();
+          loadRemainingParticipants();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAdmin, supabase, loadRegistrationStats, loadRemainingParticipants]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    // Fallback polling to keep counters fresh if realtime misses events.
+    const interval = setInterval(() => {
+      loadRegistrationStats();
+      loadRemainingParticipants();
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isAdmin, loadRegistrationStats, loadRemainingParticipants]);
 
   const handleScan = useCallback(
     async (scannedUserId: string) => {
@@ -167,6 +301,8 @@ export default function ScanPage() {
               { duration: 3000 },
             );
             loadRecentScans();
+            loadRegistrationStats();
+            loadRemainingParticipants();
           }
         } else {
           // Handle food log (existing functionality)
@@ -214,7 +350,7 @@ export default function ScanPage() {
         }, 1500);
       }
     },
-    [scanMode, selectedMeal, user, supabase, loadRecentScans],
+    [scanMode, selectedMeal, user, supabase, loadRecentScans, loadRegistrationStats, loadRemainingParticipants],
   );
 
   const startScanner = useCallback(async () => {
@@ -270,6 +406,40 @@ export default function ScanPage() {
     setIsScanning(false);
     setScannerReady(false);
   }, []);
+
+  const exportRemainingToExcel = useCallback(() => {
+    if (remainingParticipants.length === 0) {
+      toast.info("No remaining participants to export");
+      return;
+    }
+
+    const headers = ["Name", "Team", "Email", "Phone", "User ID"];
+    const escapeCsvValue = (value: string) => `"${value.replace(/"/g, '""')}"`;
+
+    const rows = remainingParticipants.map((participant) => [
+      participant.name,
+      participant.team_name,
+      participant.email,
+      participant.phone || "",
+      participant.user_id,
+    ]);
+
+    const csv = [
+      headers.map(escapeCsvValue).join(","),
+      ...rows.map((row) => row.map((cell) => escapeCsvValue(String(cell))).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `remaining_participants_${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [remainingParticipants]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -331,6 +501,122 @@ export default function ScanPage() {
                   : "Scan users for meal distribution 🍱"}
               </p>
             </div>
+
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div
+                className={`border-[3px] p-5 ${isLightMode
+                  ? "border-black bg-white shadow-[6px_6px_0_#000]"
+                  : "border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
+                  }`}
+              >
+                <p
+                  className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLightMode ? "text-black/60" : "text-white/50"}`}
+                >
+                  Registered
+                </p>
+                <p className={`mt-3 text-4xl font-black ${isLightMode ? "text-black" : "text-white"}`}>
+                  {registrationStats.registeredCount}
+                </p>
+                <p className={`mt-2 text-[10px] font-bold uppercase tracking-widest ${isLightMode ? "text-black/40" : "text-white/35"}`}>
+                  out of {registrationStats.totalParticipants}
+                </p>
+              </div>
+
+              <div
+                className={`border-[3px] p-5 ${isLightMode
+                  ? "border-black bg-white shadow-[6px_6px_0_#000]"
+                  : "border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
+                  }`}
+              >
+                <p
+                  className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLightMode ? "text-black/60" : "text-white/50"}`}
+                >
+                  Left
+                </p>
+                <p className={`mt-3 text-4xl font-black ${isLightMode ? "text-black" : "text-white"}`}>
+                  {registrationStats.remainingCount}
+                </p>
+                <p className={`mt-2 text-[10px] font-bold uppercase tracking-widest ${isLightMode ? "text-black/40" : "text-white/35"}`}>
+                  pending check-in
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={`mb-8 border-[3px] p-6 ${isLightMode
+                ? "border-black bg-white shadow-[6px_6px_0_#000]"
+                : "border-white/30 bg-[#111] shadow-[6px_6px_0_#fff]"
+                }`}
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <p
+                  className={`text-[10px] font-black uppercase tracking-[0.3em] ${isLightMode ? "text-black/70" : "text-white/50"}`}
+                >
+                  Remaining Participants
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={exportRemainingToExcel}
+                    className={`border-2 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] transition-colors ${isLightMode
+                      ? "border-black/20 text-black/60 hover:border-black hover:text-black"
+                      : "border-white/20 text-white/60 hover:border-white hover:text-white"
+                      }`}
+                  >
+                    Export To Excel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={loadRemainingParticipants}
+                    className={`text-[10px] font-black uppercase tracking-[0.2em] ${isLightMode ? "text-black/40 hover:text-black" : "text-white/30 hover:text-white"}`}
+                  >
+                    Refresh ↻
+                  </button>
+                </div>
+              </div>
+
+              {remainingLoading ? (
+                <p className={`py-6 text-center text-sm font-bold ${isLightMode ? "text-black/40" : "text-white/30"}`}>
+                  Loading remaining list...
+                </p>
+              ) : remainingParticipants.length === 0 ? (
+                <p className={`py-6 text-center text-sm font-bold ${isLightMode ? "text-black/40" : "text-white/30"}`}>
+                  Everyone is checked in
+                </p>
+              ) : (
+                <div className="max-h-80 space-y-2 overflow-y-auto no-scrollbar">
+                  {remainingParticipants.map((participant) => (
+                    <div
+                      key={participant.user_id}
+                      className={`border-2 px-4 py-3 ${isLightMode
+                        ? "border-black/10 bg-black/5"
+                        : "border-white/10 bg-white/5"
+                        }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className={`text-sm font-black ${isLightMode ? "text-black" : "text-white"}`}>
+                            {participant.name}
+                          </p>
+                          <p className={`text-[10px] font-bold uppercase tracking-wider ${isLightMode ? "text-black/50" : "text-white/40"}`}>
+                            {participant.team_name}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-[10px] font-bold ${isLightMode ? "text-black/60" : "text-white/50"}`}>
+                            {participant.email}
+                          </p>
+                          <p className={`text-[10px] font-bold ${isLightMode ? "text-black/40" : "text-white/30"}`}>
+                            {participant.phone || "No phone"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Mode Selector */}
             <div
               className={`mb-8 border-[3px] p-6 ${isLightMode
